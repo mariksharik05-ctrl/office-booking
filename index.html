@@ -61,7 +61,7 @@
                 <hr><h4>Статус на этот день</h4>
                 <div class="status-buttons">
                     <div class="status-btn" data-status="office">🏢 В офисе</div>
-                    <div class="status-btn" data-status="home">🏠 Из дома</div>
+                    <div class="status-btn" data-status="home">🏠 Из дома / на Воздвиженке</div>
                     <div class="status-btn" data-status="vacation">🌴 Отпуск</div>
                     <div class="status-btn" data-status="sick">🤒 Больничный</div>
                 </div>
@@ -169,43 +169,75 @@
     }
 
     // ========== ДЕЙСТВИЯ ==========
-    async function setBooking(dateStr, employeeName, placeName) {
-        // Удаляем старую бронь
+    // ========== ДЕЙСТВИЯ ==========
+async function setBooking(dateStr, employeeName, placeName) {
+    console.log("Сохранение брони:", { dateStr, employeeName, placeName });
+    
+    // Удаляем старую бронь
+    const { error: deleteError } = await supabase
+        .from("bookings")
+        .delete()
+        .eq("date", dateStr)
+        .eq("employee", employeeName);
+    
+    if (deleteError) console.error("Ошибка удаления:", deleteError);
+    
+    // Добавляем новую (если место указано)
+    if (placeName) {
+        const { error: insertError } = await supabase
+            .from("bookings")
+            .insert([{ date: dateStr, employee: employeeName, place: placeName }]);
+        
+        if (insertError) {
+            console.error("Ошибка вставки:", insertError);
+            alert("Ошибка сохранения: " + insertError.message);
+            return;
+        }
+    }
+    
+    console.log("Бронь сохранена");
+    await loadData();
+    renderAll();
+}
+
+async function setLeave(employeeName, startDate, endDate, type) {
+    console.log("Сохранение отпуска/больничного/дома:", { employeeName, startDate, endDate, type });
+    
+    if (type === "home") {
+        // При отметке "Из дома" — удаляем бронь и отпуск
+        // 1. Удаляем бронь на этот день
         await supabase
             .from("bookings")
             .delete()
-            .eq("date", dateStr)
+            .eq("date", startDate)
             .eq("employee", employeeName);
         
-        // Добавляем новую
-        if (placeName) {
-            await supabase
-                .from("bookings")
-                .insert([{ date: dateStr, employee: employeeName, place: placeName }]);
-        }
-        
-        await loadData();
-        renderAll();
-    }
-
-    async function setLeave(employeeName, startDate, endDate, type) {
-        // Удаляем старый статус на этот период
+        // 2. Удаляем запись в leaves (если была)
         await supabase
             .from("leaves")
             .delete()
             .eq("employee", employeeName)
             .eq("start_date", startDate);
         
-        // Добавляем новый
-        if (type === "vacation" || type === "sick") {
-            await supabase
-                .from("leaves")
-                .insert([{ employee: employeeName, start_date: startDate, end_date: endDate, type: type }]);
-        }
+    } else if (type === "vacation" || type === "sick") {
+        // Удаляем старую запись в leaves
+        await supabase
+            .from("leaves")
+            .delete()
+            .eq("employee", employeeName)
+            .eq("start_date", startDate);
         
-        await loadData();
-        renderAll();
+        // Добавляем новую
+        const { error: insertError } = await supabase
+            .from("leaves")
+            .insert([{ employee: employeeName, start_date: startDate, end_date: endDate, type: type }]);
+        
+        if (insertError) console.error("Ошибка вставки отпуска:", insertError);
     }
+    
+    await loadData();
+    renderAll();
+}
 
     // ========== ОТРИСОВКА ==========
     function renderProfile() {
