@@ -399,15 +399,24 @@ function renderMap() {
 async function init() {
     await loadData();
 
+    // 🔥 ВАЖНО: заполняем список сотрудников
+    const select = document.getElementById("employeeSelect");
+    select.innerHTML =
+        '<option value="">Выберите себя</option>' +
+        employees.map(e => `<option value="${e.name}">${e.name}</option>`).join('');
+
     const saved = localStorage.getItem("currentUser");
 
-    if (saved) {
+    if (saved && employees.some(e => e.name === saved)) {
         currentUser = { name: saved };
+
         document.getElementById("loginScreen").style.display = "none";
         document.getElementById("mainApp").style.display = "block";
+
         renderAll();
     } else {
         document.getElementById("loginScreen").style.display = "block";
+        document.getElementById("mainApp").style.display = "none";
     }
 }
 
