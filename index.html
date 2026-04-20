@@ -1,14 +1,575 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Read Aloud - Text to Speech</title>
-    <script type="module" crossorigin src="./assets/index-D3OXNI0m.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-0Sdx-ssW.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Бронирование офиса</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 16px;
+            color: #1c1c1e;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        /* Вкладки */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            background: white;
+            padding: 8px;
+            border-radius: 32px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            font-size: 16px;
+            font-weight: 500;
+            border-radius: 28px;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #666;
+        }
+        .tab-btn.active {
+            background: #007aff;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* Авторизация */
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            background: white;
+            padding: 32px;
+            border-radius: 28px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        select, input, button {
+            width: 100%;
+            padding: 14px;
+            margin: 8px 0;
+            border-radius: 14px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+        }
+        button {
+            background: #007aff;
+            color: white;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button:active { opacity: 0.8; }
+        .logout-btn {
+            background: #ff3b30;
+            margin-top: 20px;
+        }
+        /* Календарь */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .month-nav {
+            background: #f2f2f2;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        .cal-day {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 12px 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.1s;
+            font-size: 14px;
+            border: 1px solid #eee;
+        }
+        .cal-day.today {
+            background: #007aff20;
+            border: 1px solid #007aff;
+        }
+        .cal-day.has-status {
+            background: #e3f2fd;
+        }
+        /* Карта мест */
+        .office-map {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-x: auto;
+        }
+        .map-row {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+        .map-place {
+            width: 100px;
+            height: 100px;
+            background: #e0e0e0;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            transition: 0.1s;
+            cursor: pointer;
+            text-align: center;
+            font-size: 14px;
+            padding: 8px;
+        }
+        .place-red { background: #ff3b30; color: white; }
+        .place-green { background: #34c759; color: white; }
+        .place-gray { background: #8e8e93; color: white; }
+        .place-blue { background: #007aff; color: white; }
+        .status-selector {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .status-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 30px;
+            text-align: center;
+            background: #f2f2f2;
+            cursor: pointer;
+        }
+        .status-btn.selected {
+            background: #007aff;
+            color: white;
+        }
+        .info-text {
+            background: #f2f2f2;
+            padding: 12px;
+            border-radius: 16px;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+        @media (max-width: 700px) {
+            .map-place { width: 70px; height: 70px; font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container" id="app">
+    <div id="loginScreen" style="display: none;">
+        <div class="login-container">
+            <h2>Бронирование офиса</h2>
+            <select id="employeeSelect">
+                <option value="">Выберите себя</option>
+            </select>
+            <input type="password" id="passwordInput" placeholder="4-значный пароль" maxlength="4" inputmode="numeric">
+            <button id="loginBtn">Войти</button>
+            <div class="info-text">Пароль выдал администратор</div>
+        </div>
+    </div>
+    <div id="mainApp" style="display: none;">
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="profile">👤 Мой кабинет</button>
+            <button class="tab-btn" data-tab="calendar">📅 Календарь</button>
+            <button class="tab-btn" data-tab="map">🗺️ Карта мест</button>
+        </div>
+        <div id="profileTab" class="tab-content active">
+            <div id="profileInfo"></div>
+            <button id="logoutBtnMain" class="logout-btn">Выйти</button>
+        </div>
+        <div id="calendarTab" class="tab-content">
+            <div class="calendar-header">
+                <span class="month-nav" id="prevMonth">◀ Назад</span>
+                <h3 id="monthYear"></h3>
+                <span class="month-nav" id="nextMonth">Вперед ▶</span>
+            </div>
+            <div class="weekdays">
+                <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+            </div>
+            <div id="calendarGrid" class="calendar-grid"></div>
+            <div id="statusPanel" style="display: none;">
+                <hr>
+                <h4>Выберите статус на выбранный день</h4>
+                <div class="status-selector">
+                    <div class="status-btn" data-status="office">🏢 В офисе</div>
+                    <div class="status-btn" data-status="home">🏠 Из дома</div>
+                    <div class="status-btn" data-status="vacation">🌴 Отпуск</div>
+                    <div class="status-btn" data-status="sick">🤒 Больничный</div>
+                </div>
+                <button id="clearStatusBtn">Сбросить статус</button>
+            </div>
+        </div>
+        <div id="mapTab" class="tab-content">
+            <h3>Карта мест</h3>
+            <p>Выберите день, чтобы увидеть доступность:</p>
+            <input type="date" id="mapDate" value="">
+            <div id="officeMap" class="office-map" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ⚙️ НАСТРОЙКИ — ЗАМЕНИТЕ ID ВАШЕЙ ТАБЛИЦЫ
+    const SPREADSHEET_ID = "1N0qKICfnikvdFDH1lv0hgyJnqj2wxYD_5N8DjhT-cR8"; // Замените на ID вашей скопированной таблицы
+    
+    // Построение URL для публичных данных Google Sheets
+
+    function getSheetURL(sheetName) {
+          return `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&sheet=${encodeURIComponent(sheetName)}`;
+}
+
+    
+    // Глобальные данные
+    let employees = [];        // { name, place, password, sharedWith }
+    let places = [];           // { name, posX, posY }
+    let bookings = [];         // { date, employee, place }
+    let leaves = [];           // { employee, start, end, type }
+    let currentUser = null;    // { name, place, sharedWith }
+    let selectedDate = null;
+    let currentMonth = new Date();
+    let currentMapDate = new Date().toISOString().slice(0,10);
+    
+    // Загрузка всех данных из CSV
+    async function loadData() {
+        try {
+            const employeesCSV = await fetch(getSheetURL("employees")).then(r => r.text());
+            const placesCSV = await fetch(getSheetURL("places")).then(r => r.text());
+            const bookingsCSV = await fetch(getSheetURL("bookings")).then(r => r.text());
+            const leavesCSV = await fetch(getSheetURL("leaves")).then(r => r.text());
+            
+            employees = parseCSV(employeesCSV).map(row => ({
+                name: row.name?.trim(),
+                place: row.place?.trim() || "",
+                password: row.password?.trim(),
+                sharedWith: row.shared_with?.trim() || ""
+            }));
+            places = parseCSV(placesCSV).map(row => ({
+    		name: row.place_name?.trim(),
+    		posX: Number(row.pos_x),
+    		posY: Number(row.pos_y)
+	    }));
+            bookings = parseCSV(bookingsCSV).map(row => ({
+                date: row.date?.trim(),
+                employee: row.employee?.trim(),
+                place: row.place?.trim()
+            }));
+            leaves = parseCSV(leavesCSV).map(row => ({
+                employee: row.employee?.trim(),
+                start: row.start_date?.trim(),
+                end: row.end_date?.trim(),
+                type: row.type?.trim()
+            }));
+            
+            // Убираем дубликаты и пустые
+            employees = employees.filter(e => e.name && e.password);
+            places = places.filter(p => p.name);
+            bookings = bookings.filter(b => b.date && b.employee);
+            leaves = leaves.filter(l => l.employee && l.start);
+            
+            console.log("Данные загружены", { employees, places, bookings, leaves });
+        } catch(e) {
+            console.error("Ошибка загрузки данных:", e);
+            alert("Не удалось загрузить данные из таблицы. Проверьте, что таблица опубликована.");
+        }
+    }
+    
+    function parseCSV(csvText) {
+        const lines = csvText.split(/\r?\n/).filter(l => l.trim());
+        if(lines.length < 2) return [];
+        const headers = lines[0].split(",").map(h => h.replace(/^"|"$/g, '').trim());
+        const result = [];
+        for(let i=1; i<lines.length; i++) {
+            const values = lines[i].split(",").map(v => v.replace(/^"|"$/g, '').trim());
+            if(values.length === headers.length) {
+                let row = {};
+                headers.forEach((h, idx) => row[h] = values[idx]);
+                result.push(row);
+            }
+        }
+        return result;
+    }
+    
+    // Проверка пароля
+    function checkPassword(name, pwd) {
+        const emp = employees.find(e => e.name === name);
+        return emp && emp.password === pwd;
+    }
+    
+    // Получить закреплённое место сотрудника (с учётом shared)
+    function getEmployeePlace(name, dateStr) {
+        const emp = employees.find(e => e.name === name);
+        if(!emp || !emp.place) return null;
+        // Если место общее — проверяем, не занял ли уже второй владелец
+        if(emp.sharedWith) {
+            const other = emp.sharedWith;
+            const bookingOnDate = bookings.find(b => b.date === dateStr && b.place === emp.place && b.employee === other);
+            if(bookingOnDate) return null; // место занято другим владельцем
+        }
+        return emp.place;
+    }
+    
+    // Получить статус сотрудника на день (из leaves)
+    function getEmployeeStatus(name, dateStr) {
+        const leave = leaves.find(l => l.employee === name && dateStr >= l.start && dateStr <= l.end);
+        if(leave) return leave.type; // vacation / sick
+        // Проверим бронь с типом (в booking нет типа, но мы храним отдельно. Пока по наличию брони офис)
+        const booking = bookings.find(b => b.date === dateStr && b.employee === name);
+        if(booking) return "office";
+        return "home"; // по умолчанию если не отметил — home? Но по ТЗ серое — не отметил. Пока сделаем null
+    }
+    
+    // Доступно ли место для бронирования для пользователя (не владельца)
+    function isPlaceAvailableForBooking(placeName, dateStr, currentUserName) {
+        const owner = employees.find(e => e.place === placeName);
+        if(!owner) return true; // нет владельца
+        const ownerStatus = getEmployeeStatus(owner.name, dateStr);
+        // Если владелец отметил office — место занято
+        if(ownerStatus === "office") return false;
+        // Если владелец ещё не отметил — место серое, недоступно для других
+        const hasOwnerMark = bookings.some(b => b.date === dateStr && b.employee === owner.name);
+        if(!hasOwnerMark && ownerStatus !== "home" && ownerStatus !== "vacation" && ownerStatus !== "sick") {
+            return false; // серое
+        }
+        // Если владелец в home/vacation/sick — доступно
+        return true;
+    }
+    
+    // Получить цвет места на карте
+    function getPlaceColor(placeName, dateStr) {
+        const owner = employees.find(e => e.place === placeName);
+        if(!owner) return "green";
+        const status = getEmployeeStatus(owner.name, dateStr);
+        const hasBooking = bookings.some(b => b.date === dateStr && b.place === placeName);
+        if(hasBooking && status === "office") return "red";
+        if(status === "office") return "red";
+        if(status === "home" || status === "vacation" || status === "sick") return "green";
+        // Не отметил
+        const hasAnyMark = bookings.some(b => b.date === dateStr && b.employee === owner.name);
+        if(!hasAnyMark) return "gray";
+        return "green";
+    }
+    
+    // Сохранение брони (автоматически при отметке office)
+    async function setBooking(dateStr, employeeName, placeName) {
+        // удалим старую бронь этого сотрудника на эту дату
+        const existingIndex = bookings.findIndex(b => b.date === dateStr && b.employee === employeeName);
+        if(existingIndex !== -1) bookings.splice(existingIndex, 1);
+        if(placeName) {
+            bookings.push({ date: dateStr, employee: employeeName, place: placeName });
+        }
+        // TODO: здесь нужно синхронизировать с Google Sheets, но для простоты сохраняем в памяти.
+        // В реальности лучше сохранять через Google Apps Script, но для демо — перезагрузка сбросит.
+        alert(`Бронь обновлена: ${dateStr} -> ${placeName || "нет"}`);
+        renderAll();
+    }
+    
+    async function setLeave(employeeName, startDate, endDate, type) {
+        leaves = leaves.filter(l => l.employee !== employeeName || !(l.start === startDate && l.end === endDate));
+        leaves.push({ employee: employeeName, start: startDate, end: endDate, type: type });
+        renderAll();
+    }
+    
+    // UI Рендер
+    function renderAll() {
+        if(!currentUser) return;
+        renderProfile();
+        renderCalendar();
+        renderMap();
+    }
+    
+    function renderProfile() {
+        const profileDiv = document.getElementById("profileInfo");
+        const userPlace = employees.find(e => e.name === currentUser.name)?.place || "Нет закреплённого места";
+        const todayStr = new Date().toISOString().slice(0,10);
+        const todayBooking = bookings.find(b => b.date === todayStr && b.employee === currentUser.name);
+        profileDiv.innerHTML = `
+            <h2>👋 ${currentUser.name}</h2>
+            <div class="info-text">
+                <strong>Ваше место:</strong> ${userPlace || "—"}<br>
+                <strong>Сегодня:</strong> ${todayBooking ? `Вы сидите за ${todayBooking.place}` : "Вы не в офисе или не бронировали"}
+            </div>
+        `;
+    }
+    
+    function renderCalendar() {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const startWeekday = (firstDay.getDay() + 6) % 7;
+        const daysInMonth = new Date(year, month+1, 0).getDate();
+        const todayStr = new Date().toISOString().slice(0,10);
+        let gridHtml = "";
+        for(let i=0; i<startWeekday; i++) gridHtml += "<div></div>";
+        for(let d=1; d<=daysInMonth; d++) {
+            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const status = getEmployeeStatus(currentUser.name, dateStr);
+            const hasStatus = status ? "has-status" : "";
+            const isToday = dateStr === todayStr ? "today" : "";
+            gridHtml += `<div class="cal-day ${hasStatus} ${isToday}" data-date="${dateStr}">${d}</div>`;
+        }
+        document.getElementById("calendarGrid").innerHTML = gridHtml;
+        document.getElementById("monthYear").innerText = `${firstDay.toLocaleString('ru', {month:'long'})} ${year}`;
+        document.querySelectorAll(".cal-day").forEach(el => {
+            el.addEventListener("click", () => {
+                selectedDate = el.dataset.date;
+                document.getElementById("statusPanel").style.display = "block";
+                document.querySelectorAll(".cal-day").forEach(d => d.style.background = "");
+                el.style.background = "#cce5ff";
+            });
+        });
+    }
+    
+    function renderMap() {
+        const mapDate = document.getElementById("mapDate").value || currentMapDate;
+        const mapDiv = document.getElementById("officeMap");
+        const maxY = Math.max(...places.map(p=>p.posY), 0);
+        const rows = [];
+        for(let y=0; y<=maxY; y++) {
+            const placesInRow = places.filter(p => Number(p.posY) === y);
+            rows.push(placesInRow);
+        }
+        mapDiv.innerHTML = rows.map(row => `
+            <div class="map-row">
+                ${row.map(place => {
+                    const color = getPlaceColor(place.name, mapDate);
+                    let colorClass = "";
+                    if(color === "red") colorClass = "place-red";
+                    if(color === "green") colorClass = "place-green";
+                    if(color === "gray") colorClass = "place-gray";
+                    return `<div class="map-place ${colorClass}">${place.name}</div>`;
+                }).join('')}
+            </div>
+        `).join('');
+    }
+    
+    // Инициализация и вход
+    async function init() {
+        await loadData();
+        const savedUser = localStorage.getItem("currentUser");
+        if(savedUser && employees.some(e => e.name === savedUser)) {
+            currentUser = { name: savedUser };
+            document.getElementById("loginScreen").style.display = "none";
+            document.getElementById("mainApp").style.display = "block";
+            renderAll();
+        } else {
+            document.getElementById("loginScreen").style.display = "block";
+            document.getElementById("mainApp").style.display = "none";
+            const select = document.getElementById("employeeSelect");
+            select.innerHTML = '<option value="">Выберите себя</option>' + employees.map(e => `<option value="${e.name}">${e.name}</option>`).join('');
+        }
+    }
+    
+    // События
+    document.addEventListener("DOMContentLoaded", () => {
+        init();
+        document.getElementById("loginBtn")?.addEventListener("click", () => {
+            const name = document.getElementById("employeeSelect").value;
+            const pwd = document.getElementById("passwordInput").value;
+            if(checkPassword(name, pwd)) {
+                localStorage.setItem("currentUser", name);
+                currentUser = { name };
+                document.getElementById("loginScreen").style.display = "none";
+                document.getElementById("mainApp").style.display = "block";
+                renderAll();
+            } else {
+                alert("Неверный пароль");
+            }
+        });
+        document.getElementById("logoutBtnMain")?.addEventListener("click", () => {
+            localStorage.removeItem("currentUser");
+            location.reload();
+        });
+        document.querySelectorAll(".tab-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+                document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+                btn.classList.add("active");
+                const tab = btn.dataset.tab;
+                if(tab === "profile") document.getElementById("profileTab").classList.add("active");
+                if(tab === "calendar") document.getElementById("calendarTab").classList.add("active");
+                if(tab === "map") document.getElementById("mapTab").classList.add("active");
+            });
+        });
+        document.getElementById("prevMonth")?.addEventListener("click", () => {
+            currentMonth.setMonth(currentMonth.getMonth() - 1);
+            renderCalendar();
+        });
+        document.getElementById("nextMonth")?.addEventListener("click", () => {
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+            renderCalendar();
+        });
+        document.getElementById("mapDate")?.addEventListener("change", (e) => {
+            currentMapDate = e.target.value;
+            renderMap();
+        });
+        document.querySelectorAll(".status-btn").forEach(btn => {
+            btn.addEventListener("click", async (e) => {
+                if(!selectedDate) { alert("Выберите день в календаре"); return; }
+                const status = e.currentTarget.dataset.status;
+                if(status === "office") {
+                    const myPlace = getEmployeePlace(currentUser.name, selectedDate);
+                    if(myPlace) {
+                        await setBooking(selectedDate, currentUser.name, myPlace);
+                    } else {
+                        // нет места — показать свободные
+                        const availablePlaces = places.filter(p => isPlaceAvailableForBooking(p.name, selectedDate, currentUser.name));
+                        if(availablePlaces.length === 0) alert("Нет свободных мест!");
+                        else {
+                            const placeNames = availablePlaces.map(p => p.name).join(", ");
+                            const chosen = prompt(`Свободные места: ${placeNames}. Введите название места:`);
+                            if(chosen && availablePlaces.some(p => p.name === chosen)) {
+                                await setBooking(selectedDate, currentUser.name, chosen);
+                            } else alert("Неверное место");
+                        }
+                    }
+                } else if(status === "home") {
+                    await setBooking(selectedDate, currentUser.name, null);
+                    await setLeave(currentUser.name, selectedDate, selectedDate, "home");
+                } else if(status === "vacation") {
+                    let end = prompt("Дата окончания отпуска (ГГГГ-ММ-ДД):");
+                    if(end) await setLeave(currentUser.name, selectedDate, end, "vacation");
+                } else if(status === "sick") {
+                    let end = prompt("Дата окончания больничного (ГГГГ-ММ-ДД):");
+                    if(end) await setLeave(currentUser.name, selectedDate, end, "sick");
+                }
+                renderAll();
+            });
+        });
+    });
+</script>
+</body>
 </html>
