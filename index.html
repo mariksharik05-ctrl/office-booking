@@ -25,7 +25,7 @@
         .status-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0; }
         .status-btn { flex: 1; padding: 12px; background: #f2f2f7; border-radius: 30px; text-align: center; cursor: pointer; font-weight: 500; }
         .map-grid { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; margin-top: 20px; }
-        .map-place { width: 90px; height: 90px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-weight: 600; text-align: center; }
+        .map-place { width: 90px; height: 90px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-weight: 600; text-align: center; cursor: pointer; }
         .place-red { background: #ff3b30; color: white; }
         .place-green { background: #34c759; color: white; }
         .place-gray { background: #8e8e93; color: white; }
@@ -61,7 +61,7 @@
                 <hr><h4>Статус на этот день</h4>
                 <div class="status-buttons">
                     <div class="status-btn" data-status="office">🏢 В офисе</div>
-                    <div class="status-btn" data-status="home">🏠 Из дома / на Воздвиженке</div>
+                    <div class="status-btn" data-status="home">🏠 Из дома</div>
                     <div class="status-btn" data-status="vacation">🌴 Отпуск</div>
                     <div class="status-btn" data-status="sick">🤒 Больничный</div>
                 </div>
@@ -102,39 +102,48 @@
                 supabase.from("leaves").select("*")
             ]);
             
-            if (empRes.error) throw empRes.error;
-            if (placesRes.error) throw placesRes.error;
-            
             employees = empRes.data || [];
             places = placesRes.data || [];
             bookings = bookRes.data || [];
             leaves = leavesRes.data || [];
             
-            console.log("Данные загружены:", { employees, places, bookings, leaves });
+            console.log("✅ Данные загружены:");
+            console.log("  - Сотрудники:", employees.length);
+            console.log("  - Места:", places.length);
+            console.log("  - Брони:", bookings.length);
+            console.log("  - Leaves (отпуска/дома):", leaves.length);
+            console.log("  - Пример leaves:", leaves.slice(0, 3));
+            
             return true;
         } catch(e) {
-            console.error("Ошибка загрузки:", e);
+            console.error("❌ Ошибка загрузки:", e);
             return false;
         }
     }
 
     // ========== ЛОГИКА ==========
     function getEmployeeStatus(employeeName, dateStr) {
-        // Проверяем отпуск/больничный
+        // Проверяем leaves (отпуск, больничный, из дома)
         const leave = leaves.find(l => 
             l.employee === employeeName && 
             dateStr >= l.start_date && 
             dateStr <= l.end_date
         );
-        if (leave) return leave.type;
+        if (leave) {
+            console.log(`Статус ${employeeName} на ${dateStr}: ${leave.type} (из leaves)`);
+            return leave.type;
+        }
         
         // Проверяем бронь
         const booking = bookings.find(b => 
             b.date === dateStr && b.employee === employeeName
         );
-        if (booking) return "office";
+        if (booking) {
+            console.log(`Статус ${employeeName} на ${dateStr}: office (из bookings)`);
+            return "office";
+        }
         
-        return null; // не отметил
+        return null;
     }
 
     function getEmployeePlace(employeeName) {
@@ -143,125 +152,102 @@
     }
 
     function getPlaceColor(placeName, dateStr) {
-    const owner = employees.find(e => e.place === placeName);
-    
-    // Если у места нет владельца
-    if (!owner) {
-        const isBooked = bookings.some(b => b.date === dateStr && b.place === placeName);
-        return isBooked ? "red" : "green";
-    }
-    
-    // Статус владельца
-    const ownerStatus = getEmployeeStatus(owner.name, dateStr);
-    
-    // Если владелец — текущий пользователь
-    if (owner.name === currentUser) {
+        const owner = employees.find(e => e.place === placeName);
+        
+        // Если у места нет владельца
+        if (!owner) {
+            const isBooked = bookings.some(b => b.date === dateStr && b.place === placeName);
+            return isBooked ? "red" : "green";
+        }
+        
+        // Получаем статус владельца
+        const ownerStatus = getEmployeeStatus(owner.name, dateStr);
+        
+        // Если владелец — текущий пользователь
+        if (owner.name === currentUser) {
+            if (ownerStatus === "office") return "red";
+            if (ownerStatus === "home" || ownerStatus === "vacation" || ownerStatus === "sick") return "green";
+            return "gray";
+        }
+        
+        // Для других пользователей
         if (ownerStatus === "office") return "red";
         if (ownerStatus === "home" || ownerStatus === "vacation" || ownerStatus === "sick") return "green";
+        
+        // Владелец не отметил статус
         return "gray";
     }
-    
-    // Для других пользователей
-    if (ownerStatus === "office") return "red";
-    if (ownerStatus === "home" || ownerStatus === "vacation" || ownerStatus === "sick") return "green";
-    
-    // Владелец не отметил статус
-    return "gray";
-    }
-
-    function isPlaceAvailable(placeName, dateStr, currentUserName) {
-        const owner = employees.find(e => e.place === placeName);
-        if (!owner) return true;
-        if (owner.name === currentUserName) return true; // своё место всегда доступно
-        
-        const status = getEmployeeStatus(owner.name, dateStr);
-        if (status === null) return false;
-        if (status === "office") return false;
-        return true;
-    }
 
     // ========== ДЕЙСТВИЯ ==========
-    // ========== ДЕЙСТВИЯ ==========
-async function setBooking(dateStr, employeeName, placeName) {
-    console.log("Сохранение брони:", { dateStr, employeeName, placeName });
-    
-    // Удаляем старую бронь
-    const { error: deleteError } = await supabase
-        .from("bookings")
-        .delete()
-        .eq("date", dateStr)
-        .eq("employee", employeeName);
-    
-    if (deleteError) console.error("Ошибка удаления:", deleteError);
-    
-    // Добавляем новую (если место указано)
-    if (placeName) {
-        const { error: insertError } = await supabase
-            .from("bookings")
-            .insert([{ date: dateStr, employee: employeeName, place: placeName }]);
+    async function setBooking(dateStr, employeeName, placeName) {
+        console.log("Сохранение брони:", { dateStr, employeeName, placeName });
         
-        if (insertError) {
-            console.error("Ошибка вставки:", insertError);
-            alert("Ошибка сохранения: " + insertError.message);
-            return;
-        }
-    }
-    
-    console.log("Бронь сохранена");
-    await loadData();
-    renderAll();
-}
-
-async function setLeave(employeeName, startDate, endDate, type) {
-    console.log("Сохранение отпуска/больничного/дома:", { employeeName, startDate, endDate, type });
-    
-    if (type === "home") {
-        // При отметке "Из дома" — удаляем бронь и отпуск
-        // 1. Удаляем бронь на этот день
+        // Удаляем старую бронь
         await supabase
             .from("bookings")
             .delete()
-            .eq("date", startDate)
+            .eq("date", dateStr)
             .eq("employee", employeeName);
         
-        // 2. Удаляем запись в leaves (если была)
-        await supabase
-            .from("leaves")
-            .delete()
-            .eq("employee", employeeName)
-            .eq("start_date", startDate);
+        // Добавляем новую (если место указано)
+        if (placeName) {
+            const { error } = await supabase
+                .from("bookings")
+                .insert([{ date: dateStr, employee: employeeName, place: placeName }]);
+            
+            if (error) {
+                console.error("Ошибка вставки брони:", error);
+                alert("Ошибка: " + error.message);
+                return;
+            }
+        }
         
-    } else if (type === "vacation" || type === "sick") {
-        // Удаляем старую запись в leaves
-        await supabase
-            .from("leaves")
-            .delete()
-            .eq("employee", employeeName)
-            .eq("start_date", startDate);
-        
-        // Добавляем новую
-        const { error: insertError } = await supabase
-            .from("leaves")
-            .insert([{ employee: employeeName, start_date: startDate, end_date: endDate, type: type }]);
-        
-        if (insertError) console.error("Ошибка вставки отпуска:", insertError);
+        console.log("Бронь сохранена");
+        await loadData();
+        renderAll();
     }
-    
-    await loadData();
-    renderAll();
-}
+
+    async function setLeave(employeeName, startDate, endDate, type) {
+        console.log("Сохранение статуса:", { employeeName, startDate, endDate, type });
+        
+        // Сначала удаляем старую запись
+        await supabase
+            .from("leaves")
+            .delete()
+            .eq("employee", employeeName)
+            .eq("start_date", startDate);
+        
+        // Если тип не "home" — вставляем новую
+        // Для "home" мы просто удаляем запись (означает, что человек дома, но не в отпуске)
+        if (type !== "home") {
+            const { error } = await supabase
+                .from("leaves")
+                .insert([{ 
+                    employee: employeeName, 
+                    start_date: startDate, 
+                    end_date: endDate, 
+                    type: type 
+                }]);
+            
+            if (error) {
+                console.error("Ошибка вставки leaves:", error);
+                alert("Ошибка: " + error.message);
+                return;
+            }
+        }
+        
+        console.log("Статус сохранён");
+        await loadData();
+        renderAll();
+    }
 
     // ========== ОТРИСОВКА ==========
     function renderProfile() {
         const place = getEmployeePlace(currentUser);
-        const today = new Date().toISOString().slice(0,10);
-        const todayStatus = getEmployeeStatus(currentUser, today);
-        
         document.getElementById("profileInfo").innerHTML = `
             <h2>👋 ${currentUser}</h2>
             <div class="info-card">
-                <strong>Ваше место:</strong> ${place || "Нет"}<br>
-                <strong>Сегодня:</strong> ${todayStatus === "office" ? "В офисе" : todayStatus === "home" ? "Дома" : todayStatus === "vacation" ? "В отпуске" : todayStatus === "sick" ? "На больничном" : "Не отмечено"}
+                <strong>Ваше место:</strong> ${place || "Нет"}
             </div>
         `;
     }
@@ -280,7 +266,7 @@ async function setLeave(employeeName, startDate, endDate, type) {
         for (let d=1; d<=daysInMonth; d++) {
             const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
             const status = getEmployeeStatus(currentUser, dateStr);
-            const hasStatus = status ? "has-status" : "";
+            const hasStatus = status ? "booked" : "";
             const isToday = dateStr === today ? "today" : "";
             html += `<div class="cal-day ${hasStatus} ${isToday}" data-date="${dateStr}">${d}</div>`;
         }
@@ -300,6 +286,8 @@ async function setLeave(employeeName, startDate, endDate, type) {
 
     function renderMap() {
         const date = document.getElementById("mapDatePicker").value || new Date().toISOString().slice(0,10);
+        console.log("Рендер карты для даты:", date);
+        
         const maxY = Math.max(...places.map(p => p.pos_y), 0);
         let html = "";
         
@@ -416,36 +404,54 @@ async function setLeave(employeeName, startDate, endDate, type) {
                 if (!selectedDate) { alert("Выберите день в календаре"); return; }
                 const status = btn.dataset.status;
                 
+                console.log("Нажата кнопка:", status, "для даты:", selectedDate);
+                
                 if (status === "office") {
                     const myPlace = getEmployeePlace(currentUser);
                     if (myPlace) {
                         await setBooking(selectedDate, currentUser, myPlace);
                         alert(`✅ Забронировано: ${myPlace}`);
                     } else {
-                        const availablePlaces = places.filter(p => isPlaceAvailable(p.name, selectedDate, currentUser));
-                        if (availablePlaces.length === 0) {
+                        // Показать свободные места
+                        const freePlaces = places.filter(p => {
+                            const color = getPlaceColor(p.name, selectedDate);
+                            return color === "green";
+                        });
+                        
+                        if (freePlaces.length === 0) {
                             alert("❌ Нет свободных мест");
                         } else {
-                            const list = availablePlaces.map(p => p.name).join(", ");
-                            const chosen = prompt(`Свободные места: ${list}. Введите название:`);
-                            if (chosen && availablePlaces.some(p => p.name === chosen)) {
+                            const list = freePlaces.map(p => p.name).join(", ");
+                            const chosen = prompt(`Свободные места: ${list}\nВведите название места:`);
+                            if (chosen && freePlaces.some(p => p.name === chosen)) {
                                 await setBooking(selectedDate, currentUser, chosen);
                                 alert(`✅ Забронировано: ${chosen}`);
                             }
                         }
                     }
-                } else if (status === "home") {
+                } 
+                else if (status === "home") {
                     await setBooking(selectedDate, currentUser, null);
+                    await setLeave(currentUser, selectedDate, selectedDate, "home");
                     alert("✅ Вы отметили, что будете дома");
-                } else if (status === "vacation") {
+                } 
+                else if (status === "vacation") {
                     const end = prompt("Дата окончания (ГГГГ-ММ-ДД):");
-                    if (end) await setLeave(currentUser, selectedDate, end, "vacation");
-                    alert("✅ Отпуск сохранён");
-                } else if (status === "sick") {
+                    if (end) {
+                        await setBooking(selectedDate, currentUser, null);
+                        await setLeave(currentUser, selectedDate, end, "vacation");
+                        alert("✅ Отпуск сохранён");
+                    }
+                } 
+                else if (status === "sick") {
                     const end = prompt("Дата окончания (ГГГГ-ММ-ДД):");
-                    if (end) await setLeave(currentUser, selectedDate, end, "sick");
-                    alert("✅ Больничный сохранён");
+                    if (end) {
+                        await setBooking(selectedDate, currentUser, null);
+                        await setLeave(currentUser, selectedDate, end, "sick");
+                        alert("✅ Больничный сохранён");
+                    }
                 }
+                
                 renderAll();
             };
         });
@@ -453,4 +459,3 @@ async function setLeave(employeeName, startDate, endDate, type) {
 </script>
 </body>
 </html>
-          
