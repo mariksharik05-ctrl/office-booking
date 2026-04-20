@@ -245,10 +245,12 @@
 <script type="module">
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+
 // ================== SUPABASE ==================
 const supabaseUrl = "https://yhnjagspjhemwuqrstmq.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlobmphZ3NwamhlbXd1cXJzdG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NzgwMDUsImV4cCI6MjA5MjI1NDAwNX0.YJoWnjP_Qe8w2cFxT6EgWQHSCyw7OFWTVMMxJ-L3JFo";
 const supabase = createClient(supabaseUrl, supabaseKey);
+console.log("SUPABASE CREATED");
 
 // ================== STATE ==================
 let employees = [];
