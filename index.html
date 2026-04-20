@@ -143,18 +143,30 @@
     }
 
     function getPlaceColor(placeName, dateStr) {
-        const owner = employees.find(e => e.place === placeName);
-        if (!owner) return "green";
-        
-        const status = getEmployeeStatus(owner.name, dateStr);
-        const isBookedByOwner = bookings.some(b => 
-            b.date === dateStr && b.employee === owner.name && b.place === placeName
-        );
-        
-        if (status === "office" && isBookedByOwner) return "red";
-        if (status === "office") return "red";
-        if (status === "home" || status === "vacation" || status === "sick") return "green";
+    const owner = employees.find(e => e.place === placeName);
+    
+    // Если у места нет владельца
+    if (!owner) {
+        const isBooked = bookings.some(b => b.date === dateStr && b.place === placeName);
+        return isBooked ? "red" : "green";
+    }
+    
+    // Статус владельца
+    const ownerStatus = getEmployeeStatus(owner.name, dateStr);
+    
+    // Если владелец — текущий пользователь
+    if (owner.name === currentUser) {
+        if (ownerStatus === "office") return "red";
+        if (ownerStatus === "home" || ownerStatus === "vacation" || ownerStatus === "sick") return "green";
         return "gray";
+    }
+    
+    // Для других пользователей
+    if (ownerStatus === "office") return "red";
+    if (ownerStatus === "home" || ownerStatus === "vacation" || ownerStatus === "sick") return "green";
+    
+    // Владелец не отметил статус
+    return "gray";
     }
 
     function isPlaceAvailable(placeName, dateStr, currentUserName) {
