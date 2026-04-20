@@ -245,7 +245,7 @@
 <script>
     // ⚙️ НАСТРОЙКИ — ЗАМЕНИТЕ ID ВАШЕЙ ТАБЛИЦЫ
     const SPREADSHEET_ID = "1N0qKICfnikvdFDH1lv0hgyJnqj2wxYD_5N8DjhT-cR8"; // Замените на ID вашей скопированной таблицы
-    
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbync2NxVOyYFQ4kqNYNTUUr0c4PsqkAp8v93hbzCPqB7opFZfiOPaPbCEQvve_4dSLj2A/exec"; 
     // Построение URL для публичных данных Google Sheets
 
     function getSheetURL(sheetName) {
@@ -278,10 +278,10 @@
                 sharedWith: row.shared_with?.trim() || ""
             }));
             places = parseCSV(placesCSV).map(row => ({
-    		name: row.place_name?.trim(),
-    		posX: Number(row.pos_x),
-    		posY: Number(row.pos_y)
-	    }));
+                name: row.place_name?.trim(),
+                posX: parseInt(row.pos_x) || 0,
+                posY: parseInt(row.pos_y) || 0
+            }));
             bookings = parseCSV(bookingsCSV).map(row => ({
                 date: row.date?.trim(),
                 employee: row.employee?.trim(),
@@ -383,19 +383,79 @@
         return "green";
     }
     
-    // Сохранение брони (автоматически при отметке office)
-    async function setBooking(dateStr, employeeName, placeName) {
-        // удалим старую бронь этого сотрудника на эту дату
-        const existingIndex = bookings.findIndex(b => b.date === dateStr && b.employee === employeeName);
-        if(existingIndex !== -1) bookings.splice(existingIndex, 1);
-        if(placeName) {
-            bookings.push({ date: dateStr, employee: employeeName, place: placeName });
-        }
-        // TODO: здесь нужно синхронизировать с Google Sheets, но для простоты сохраняем в памяти.
-        // В реальности лучше сохранять через Google Apps Script, но для демо — перезагрузка сбросит.
-        alert(`Бронь обновлена: ${dateStr} -> ${placeName || "нет"}`);
-        renderAll();
+    // Функция сохранения брони в таблицу
+async function saveBookingToSheet(date, employee, place) {
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'saveBooking',
+                date: date,
+                employee: employee,
+                place: place
+            })
+        });
+        const result = await response.json();
+        console.log("Сохранено в таблицу:", result);
+    } catch(e) {
+        console.error("Ошибка сохранения:", e);
     }
+}
+
+// Функция сохранения отпуска в таблицу
+async function saveLeaveToSheet(employee, startDate, endDate, type) {
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'saveLeave',
+                employee: employee,
+                startDate: startDate,
+                endDate: endDate,
+                type: type
+            })
+        });
+        console.log("Отпуск сохранён");
+    } catch(e) {
+        console.error("Ошибка сохранения отпуска:", e);
+    }
+}
+
+// Новая версия setBooking — сохраняет и локально, и в таблицу
+async function setBooking(dateStr, employeeName, placeName) {
+    // Локальное обновление
+    if (!bookings[dateStr]) bookings[dateStr] = {};
+    if (placeName) {
+        bookings[dateStr][employeeName] = { place: placeName, status: "office" };
+    } else {
+        delete bookings[dateStr][employeeName];
+        if (Object.keys(bookings[dateStr]).length === 0) delete bookings[dateStr];
+    }
+    
+    // Отправляем в Google Таблицу
+    await saveBookingToSheet(dateStr, employeeName, placeName || "");
+    
+    renderAll();
+}
+
+// Обновлённая функция setLeave
+async function setLeave(dateStr, employeeName, type) {
+    // Локальное обновление
+    if (!leaves[dateStr]) leaves[dateStr] = {};
+    if (type === "vacation" || type === "sick") {
+        leaves[dateStr][employeeName] = type;
+        // Отправляем в таблицу (если отпуск/больничный)
+        await saveLeaveToSheet(employeeName, dateStr, dateStr, type);
+    } else if (type === "home") {
+        delete leaves[dateStr][employeeName];
+        // Отправляем пустую запись (удаляем)
+        await saveLeaveToSheet(employeeName, dateStr, dateStr, "");
+    }
+    
+    renderAll();
+}
     
     async function setLeave(employeeName, startDate, endDate, type) {
         leaves = leaves.filter(l => l.employee !== employeeName || !(l.start === startDate && l.end === endDate));
@@ -459,7 +519,7 @@
         const maxY = Math.max(...places.map(p=>p.posY), 0);
         const rows = [];
         for(let y=0; y<=maxY; y++) {
-            const placesInRow = places.filter(p => Number(p.posY) === y);
+            const placesInRow = places.filter(p => p.posY === y);
             rows.push(placesInRow);
         }
         mapDiv.innerHTML = rows.map(row => `
@@ -573,3 +633,4 @@
 </script>
 </body>
 </html>
+          
