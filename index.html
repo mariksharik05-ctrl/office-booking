@@ -78,202 +78,117 @@
 <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    // ========== SUPABASE ==========
     const supabaseUrl = "https://yhnjagspjhemwuqrstmq.supabase.co";
     const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlobmphZ3NwamhlbXd1cXJzdG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NzgwMDUsImV4cCI6MjA5MjI1NDAwNX0.YJoWnjP_Qe8w2cFxT6EgWQHSCyw7OFWTVMMxJ-L3JFo";
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // ========== ДАННЫЕ ==========
-    let employees = [];
-    let places = [];
-    let bookings = [];
-    let leaves = [];
-    let currentUser = null;
-    let currentMonth = new Date();
-    let selectedDate = null;
+    let employees = [], places = [], bookings = [], leaves = [];
+    let currentUser = null, currentMonth = new Date(), selectedDate = null;
 
-    // ========== ЗАГРУЗКА ==========
     async function loadData() {
-        try {
-            const [empRes, placesRes, bookRes, leavesRes] = await Promise.all([
-                supabase.from("employees").select("*"),
-                supabase.from("places").select("*"),
-                supabase.from("bookings").select("*"),
-                supabase.from("leaves").select("*")
-            ]);
-            
-            employees = empRes.data || [];
-            places = placesRes.data || [];
-            bookings = bookRes.data || [];
-            leaves = leavesRes.data || [];
-            
-            console.log("✅ Данные загружены:");
-            console.log("  - Сотрудники:", employees.length);
-            console.log("  - Места:", places.length);
-            console.log("  - Брони:", bookings.length);
-            console.log("  - Leaves (отпуска/дома):", leaves.length);
-            console.log("  - Пример leaves:", leaves.slice(0, 3));
-            
-            return true;
-        } catch(e) {
-            console.error("❌ Ошибка загрузки:", e);
-            return false;
-        }
+        const [empRes, placesRes, bookRes, leavesRes] = await Promise.all([
+            supabase.from("employees").select("*"),
+            supabase.from("places").select("*"),
+            supabase.from("bookings").select("*"),
+            supabase.from("leaves").select("*")
+        ]);
+        employees = empRes.data || [];
+        places = placesRes.data || [];
+        bookings = bookRes.data || [];
+        leaves = leavesRes.data || [];
+        console.log("✅ Данные загружены. Leaves:", leaves.length);
+        return true;
     }
 
-    // ========== ЛОГИКА ==========
-    function getEmployeeStatus(employeeName, dateStr) {
-        // Проверяем leaves (отпуск, больничный, из дома)
-        const leave = leaves.find(l => 
-            l.employee === employeeName && 
-            dateStr >= l.start_date && 
-            dateStr <= l.end_date
-        );
+    function getEmployeeStatus(name, date) {
+        // СНАЧАЛА проверяем leaves
+        const leave = leaves.find(l => l.employee === name && date >= l.start_date && date <= l.end_date);
         if (leave) {
-            console.log(`Статус ${employeeName} на ${dateStr}: ${leave.type} (из leaves)`);
+            console.log(`Статус ${name} на ${date}: ${leave.type} (из leaves)`);
             return leave.type;
         }
-        
-        // Проверяем бронь
-        const booking = bookings.find(b => 
-            b.date === dateStr && b.employee === employeeName
-        );
+        // ПОТОМ проверяем бронь
+        const booking = bookings.find(b => b.date === date && b.employee === name);
         if (booking) {
-            console.log(`Статус ${employeeName} на ${dateStr}: office (из bookings)`);
+            console.log(`Статус ${name} на ${date}: office (из bookings)`);
             return "office";
         }
-        
         return null;
     }
 
-    function getEmployeePlace(employeeName) {
-        const emp = employees.find(e => e.name === employeeName);
-        return emp?.place || null;
+    function getEmployeePlace(name) {
+        return employees.find(e => e.name === name)?.place || null;
     }
 
-    function getPlaceColor(placeName, dateStr) {
+    function getPlaceColor(placeName, date) {
         const owner = employees.find(e => e.place === placeName);
-        
-        // Если у места нет владельца
-        if (!owner) {
-            const isBooked = bookings.some(b => b.date === dateStr && b.place === placeName);
-            return isBooked ? "red" : "green";
-        }
-        
-        // Получаем статус владельца
-        const ownerStatus = getEmployeeStatus(owner.name, dateStr);
-        
-        // Если владелец — текущий пользователь
-        if (owner.name === currentUser) {
-            if (ownerStatus === "office") return "red";
-            if (ownerStatus === "home" || ownerStatus === "vacation" || ownerStatus === "sick") return "green";
-            return "gray";
-        }
-        
-        // Для других пользователей
-        if (ownerStatus === "office") return "red";
-        if (ownerStatus === "home" || ownerStatus === "vacation" || ownerStatus === "sick") return "green";
-        
-        // Владелец не отметил статус
+        if (!owner) return bookings.some(b => b.date === date && b.place === placeName) ? "red" : "green";
+        const status = getEmployeeStatus(owner.name, date);
+        if (owner.name === currentUser) return status === "office" ? "red" : (status ? "green" : "gray");
+        if (status === "office") return "red";
+        if (status === "home" || status === "vacation" || status === "sick") return "green";
         return "gray";
     }
 
-    // ========== ДЕЙСТВИЯ ==========
-    async function setBooking(dateStr, employeeName, placeName) {
-        console.log("Сохранение брони:", { dateStr, employeeName, placeName });
-        
-        // Удаляем старую бронь
-        await supabase
-            .from("bookings")
-            .delete()
-            .eq("date", dateStr)
-            .eq("employee", employeeName);
-        
-        // Добавляем новую (если место указано)
-        if (placeName) {
-            const { error } = await supabase
-                .from("bookings")
-                .insert([{ date: dateStr, employee: employeeName, place: placeName }]);
-            
-            if (error) {
-                console.error("Ошибка вставки брони:", error);
-                alert("Ошибка: " + error.message);
-                return;
-            }
-        }
-        
-        console.log("Бронь сохранена");
+    async function setBooking(date, employee, place) {
+        await supabase.from("bookings").delete().eq("date", date).eq("employee", employee);
+        if (place) await supabase.from("bookings").insert([{ date, employee, place }]);
         await loadData();
         renderAll();
     }
 
-    async function setLeave(employeeName, startDate, endDate, type) {
-        console.log("Сохранение статуса:", { employeeName, startDate, endDate, type });
+    async function setHome(employee, date) {
+        console.log("setHome вызван для:", employee, date);
         
-        // Сначала удаляем старую запись
-        await supabase
-            .from("leaves")
-            .delete()
-            .eq("employee", employeeName)
-            .eq("start_date", startDate);
+        // 1. Удаляем бронь
+        await supabase.from("bookings").delete().eq("date", date).eq("employee", employee);
         
-        // Если тип не "home" — вставляем новую
-        // Для "home" мы просто удаляем запись (означает, что человек дома, но не в отпуске)
-        if (type !== "home") {
-            const { error } = await supabase
-                .from("leaves")
-                .insert([{ 
-                    employee: employeeName, 
-                    start_date: startDate, 
-                    end_date: endDate, 
-                    type: type 
-                }]);
-            
-            if (error) {
-                console.error("Ошибка вставки leaves:", error);
-                alert("Ошибка: " + error.message);
-                return;
-            }
-        }
+        // 2. Удаляем старую запись в leaves
+        await supabase.from("leaves").delete().eq("employee", employee).eq("start_date", date);
         
-        console.log("Статус сохранён");
+        // 3. Вставляем запись "home"
+        const { error } = await supabase.from("leaves").insert([{ 
+            employee: employee, 
+            start_date: date, 
+            end_date: date, 
+            type: "home" 
+        }]);
+        
+        if (error) console.error("Ошибка вставки home:", error);
+        else console.log("✅ Home запись добавлена");
+        
         await loadData();
         renderAll();
     }
 
-    // ========== ОТРИСОВКА ==========
+    async function setVacation(employee, start, end, type) {
+        await supabase.from("leaves").delete().eq("employee", employee).eq("start_date", start);
+        const { error } = await supabase.from("leaves").insert([{ 
+            employee, start_date: start, end_date: end, type 
+        }]);
+        if (error) console.error("Ошибка вставки:", error);
+        await loadData();
+        renderAll();
+    }
+
     function renderProfile() {
-        const place = getEmployeePlace(currentUser);
-        document.getElementById("profileInfo").innerHTML = `
-            <h2>👋 ${currentUser}</h2>
-            <div class="info-card">
-                <strong>Ваше место:</strong> ${place || "Нет"}
-            </div>
-        `;
+        document.getElementById("profileInfo").innerHTML = `<h2>👋 ${currentUser}</h2><div class="info-card"><strong>Место:</strong> ${getEmployeePlace(currentUser) || "Нет"}</div>`;
     }
 
     function renderCalendar() {
-        const year = currentMonth.getFullYear();
-        const month = currentMonth.getMonth();
+        const year = currentMonth.getFullYear(), month = currentMonth.getMonth();
         const firstDay = new Date(year, month, 1);
-        const startWeekday = (firstDay.getDay() + 6) % 7;
-        const daysInMonth = new Date(year, month+1, 0).getDate();
-        const today = new Date().toISOString().slice(0,10);
-        
+        const start = (firstDay.getDay() + 6) % 7;
+        const days = new Date(year, month + 1, 0).getDate();
         let html = "";
-        for (let i=0; i<startWeekday; i++) html += "<div></div>";
-        
-        for (let d=1; d<=daysInMonth; d++) {
-            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            const status = getEmployeeStatus(currentUser, dateStr);
-            const hasStatus = status ? "booked" : "";
-            const isToday = dateStr === today ? "today" : "";
-            html += `<div class="cal-day ${hasStatus} ${isToday}" data-date="${dateStr}">${d}</div>`;
+        for (let i = 0; i < start; i++) html += "<div></div>";
+        for (let d = 1; d <= days; d++) {
+            const date = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const status = getEmployeeStatus(currentUser, date);
+            html += `<div class="cal-day ${status ? 'booked' : ''}" data-date="${date}">${d}</div>`;
         }
-        
         document.getElementById("calendarGrid").innerHTML = html;
         document.getElementById("monthYear").innerHTML = `${firstDay.toLocaleString('ru', {month:'long'})} ${year}`;
-        
         document.querySelectorAll(".cal-day").forEach(el => {
             el.onclick = () => {
                 selectedDate = el.dataset.date;
@@ -286,79 +201,51 @@
 
     function renderMap() {
         const date = document.getElementById("mapDatePicker").value || new Date().toISOString().slice(0,10);
-        console.log("Рендер карты для даты:", date);
-        
         const maxY = Math.max(...places.map(p => p.pos_y), 0);
         let html = "";
-        
         for (let y = 0; y <= maxY; y++) {
-            const placesRow = places.filter(p => p.pos_y === y);
-            if (placesRow.length === 0) continue;
+            const row = places.filter(p => p.pos_y === y);
+            if (!row.length) continue;
             html += `<div style="display:flex; gap:16px; justify-content:center; margin-bottom:16px;">`;
-            for (const place of placesRow) {
-                const color = getPlaceColor(place.name, date);
-                let colorClass = "";
-                if (color === "red") colorClass = "place-red";
-                if (color === "green") colorClass = "place-green";
-                if (color === "gray") colorClass = "place-gray";
-                html += `<div class="map-place ${colorClass}" data-place="${place.name}">${place.name}</div>`;
+            for (const p of row) {
+                const color = getPlaceColor(p.name, date);
+                html += `<div class="map-place place-${color}">${p.name}</div>`;
             }
             html += `</div>`;
         }
-        
         document.getElementById("officeMap").innerHTML = html || "<div class='loader'>Нет мест</div>";
     }
 
-    function renderAll() {
-        if (!currentUser) return;
-        renderProfile();
-        renderCalendar();
-        renderMap();
-    }
+    function renderAll() { if (currentUser) { renderProfile(); renderCalendar(); renderMap(); } }
 
-    // ========== АВТОРИЗАЦИЯ ==========
     async function initLogin() {
-        const loader = document.getElementById("loginLoader");
-        const select = document.getElementById("employeeSelect");
-        const pwdInput = document.getElementById("passwordInput");
-        const loginBtn = document.getElementById("loginBtn");
-        const errorDiv = document.getElementById("loginError");
-        
-        const success = await loadData();
-        
-        if (!success || employees.length === 0) {
-            loader.innerText = "❌ Нет данных. Проверьте таблицы в Supabase.";
+        await loadData();
+        if (!employees.length) {
+            document.getElementById("loginLoader").innerText = "❌ Нет данных.";
             return;
         }
-        
-        loader.style.display = "none";
+        document.getElementById("loginLoader").style.display = "none";
+        const select = document.getElementById("employeeSelect");
         select.style.display = "block";
-        pwdInput.style.display = "block";
-        loginBtn.style.display = "block";
-        
-        select.innerHTML = '<option value="">Выберите себя</option>' + 
-            employees.map(e => `<option value="${e.name}">${e.name}</option>`).join('');
-        
-        loginBtn.onclick = () => {
-            const name = select.value;
-            const pwd = pwdInput.value;
-            const emp = employees.find(e => e.name === name);
-            
-            if (emp && emp.password === pwd) {
-                currentUser = name;
-                localStorage.setItem("currentUser", name);
+        select.innerHTML = '<option value="">Выберите себя</option>' + employees.map(e => `<option value="${e.name}">${e.name}</option>`).join('');
+        document.getElementById("passwordInput").style.display = "block";
+        document.getElementById("loginBtn").style.display = "block";
+        document.getElementById("loginBtn").onclick = () => {
+            const emp = employees.find(e => e.name === select.value);
+            if (emp && emp.password === document.getElementById("passwordInput").value) {
+                currentUser = emp.name;
+                localStorage.setItem("currentUser", currentUser);
                 document.getElementById("loginScreen").style.display = "none";
                 document.getElementById("mainApp").style.display = "block";
                 renderAll();
             } else {
-                errorDiv.innerText = "Неверный пароль";
-                errorDiv.style.display = "block";
-                setTimeout(() => errorDiv.style.display = "none", 2000);
+                document.getElementById("loginError").innerText = "Неверный пароль";
+                document.getElementById("loginError").style.display = "block";
+                setTimeout(() => document.getElementById("loginError").style.display = "none", 2000);
             }
         };
     }
 
-    // ========== ЗАПУСК ==========
     document.addEventListener("DOMContentLoaded", () => {
         const saved = localStorage.getItem("currentUser");
         if (saved) {
@@ -368,90 +255,51 @@
                 document.getElementById("mainApp").style.display = "block";
                 renderAll();
             });
-        } else {
-            initLogin();
-        }
+        } else initLogin();
         
-        document.getElementById("logoutBtn")?.addEventListener("click", () => {
-            localStorage.removeItem("currentUser");
-            location.reload();
+        document.getElementById("logoutBtn")?.addEventListener("click", () => { localStorage.removeItem("currentUser"); location.reload(); });
+        document.querySelectorAll(".tab-btn").forEach(btn => btn.onclick = () => {
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+            btn.classList.add("active");
+            document.getElementById(`${btn.dataset.tab}Tab`).classList.add("active");
+            if (btn.dataset.tab === "map") renderMap();
         });
-        
-        document.querySelectorAll(".tab-btn").forEach(btn => {
-            btn.onclick = () => {
-                document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-                document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
-                btn.classList.add("active");
-                document.getElementById(`${btn.dataset.tab}Tab`).classList.add("active");
-                if (btn.dataset.tab === "map") renderMap();
-            };
-        });
-        
-        document.getElementById("prevMonthBtn")?.addEventListener("click", () => {
-            currentMonth.setMonth(currentMonth.getMonth() - 1);
-            renderCalendar();
-        });
-        
-        document.getElementById("nextMonthBtn")?.addEventListener("click", () => {
-            currentMonth.setMonth(currentMonth.getMonth() + 1);
-            renderCalendar();
-        });
-        
+        document.getElementById("prevMonthBtn")?.addEventListener("click", () => { currentMonth.setMonth(currentMonth.getMonth() - 1); renderCalendar(); });
+        document.getElementById("nextMonthBtn")?.addEventListener("click", () => { currentMonth.setMonth(currentMonth.getMonth() + 1); renderCalendar(); });
         document.getElementById("mapDatePicker")?.addEventListener("change", () => renderMap());
         
         document.querySelectorAll(".status-btn").forEach(btn => {
             btn.onclick = async () => {
-                if (!selectedDate) { alert("Выберите день в календаре"); return; }
+                if (!selectedDate) return alert("Выберите день");
                 const status = btn.dataset.status;
-                
-                console.log("Нажата кнопка:", status, "для даты:", selectedDate);
+                console.log("Нажато:", status, selectedDate);
                 
                 if (status === "office") {
                     const myPlace = getEmployeePlace(currentUser);
                     if (myPlace) {
                         await setBooking(selectedDate, currentUser, myPlace);
                         alert(`✅ Забронировано: ${myPlace}`);
-                    } else {
-                        // Показать свободные места
-                        const freePlaces = places.filter(p => {
-                            const color = getPlaceColor(p.name, selectedDate);
-                            return color === "green";
-                        });
-                        
-                        if (freePlaces.length === 0) {
-                            alert("❌ Нет свободных мест");
-                        } else {
-                            const list = freePlaces.map(p => p.name).join(", ");
-                            const chosen = prompt(`Свободные места: ${list}\nВведите название места:`);
-                            if (chosen && freePlaces.some(p => p.name === chosen)) {
-                                await setBooking(selectedDate, currentUser, chosen);
-                                alert(`✅ Забронировано: ${chosen}`);
-                            }
-                        }
-                    }
+                    } else alert("Нет закреплённого места");
                 } 
                 else if (status === "home") {
-                    await setBooking(selectedDate, currentUser, null);
-                    await setLeave(currentUser, selectedDate, selectedDate, "home");
-                    alert("✅ Вы отметили, что будете дома");
+                    await setHome(currentUser, selectedDate);
+                    alert("✅ Отмечено как 'Из дома'");
                 } 
                 else if (status === "vacation") {
                     const end = prompt("Дата окончания (ГГГГ-ММ-ДД):");
                     if (end) {
-                        await setBooking(selectedDate, currentUser, null);
-                        await setLeave(currentUser, selectedDate, end, "vacation");
+                        await setVacation(currentUser, selectedDate, end, "vacation");
                         alert("✅ Отпуск сохранён");
                     }
                 } 
                 else if (status === "sick") {
                     const end = prompt("Дата окончания (ГГГГ-ММ-ДД):");
                     if (end) {
-                        await setBooking(selectedDate, currentUser, null);
-                        await setLeave(currentUser, selectedDate, end, "sick");
+                        await setVacation(currentUser, selectedDate, end, "sick");
                         alert("✅ Больничный сохранён");
                     }
                 }
-                
                 renderAll();
             };
         });
