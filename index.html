@@ -24,7 +24,7 @@
         .cal-day.selected { background: #007aff; color: white; }
         .status-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0; }
         .status-btn { flex: 1; padding: 12px; background: #f2f2f7; border-radius: 30px; text-align: center; cursor: pointer; font-weight: 500; }
-        .map-grid { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; margin-top: 20px; }
+        .map-grid { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
         .map-place { width: 90px; height: 90px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-weight: 600; text-align: center; cursor: pointer; }
         .place-red { background: #ff3b30; color: white; }
         .place-green { background: #34c759; color: white; }
@@ -177,18 +177,35 @@
 
     function renderMap() {
         const date = document.getElementById("mapDatePicker").value || new Date().toISOString().slice(0,10);
+        
+        const maxX = Math.max(...places.map(p => p.pos_x), 0);
         const maxY = Math.max(...places.map(p => p.pos_y), 0);
+        
+        // Создаём сетку
+        const grid = Array(maxY + 1).fill().map(() => Array(maxX + 1).fill(null));
+        for (const place of places) {
+            const x = place.pos_x;
+            const y = place.pos_y;
+            if (grid[y] && grid[y][x] !== undefined) {
+                grid[y][x] = place;
+            }
+        }
+        
         let html = "";
         for (let y = 0; y <= maxY; y++) {
-            const row = places.filter(p => p.pos_y === y);
-            if (!row.length) continue;
             html += `<div style="display:flex; gap:16px; justify-content:center; margin-bottom:16px;">`;
-            for (const p of row) {
-                const color = getPlaceColor(p.name, date);
-                html += `<div class="map-place place-${color}">${p.name}</div>`;
+            for (let x = 0; x <= maxX; x++) {
+                const place = grid[y][x];
+                if (place) {
+                    const color = getPlaceColor(place.name, date);
+                    html += `<div class="map-place place-${color}" data-place="${place.name}">${place.name}</div>`;
+                } else {
+                    html += `<div style="width: 90px; height: 90px; visibility: hidden;"></div>`;
+                }
             }
             html += `</div>`;
         }
+        
         document.getElementById("officeMap").innerHTML = html || "<div class='loader'>Нет мест</div>";
     }
 
@@ -257,7 +274,6 @@
                         await setBooking(selectedDate, currentUser, myPlace);
                         alert(`✅ Забронировано ваше место: ${myPlace}`);
                     } else {
-                        // Показываем свободные места
                         const freePlaces = places.filter(p => {
                             const color = getPlaceColor(p.name, selectedDate);
                             return color === "green";
