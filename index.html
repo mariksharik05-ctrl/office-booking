@@ -101,18 +101,10 @@
     }
 
     function getEmployeeStatus(name, date) {
-        // СНАЧАЛА проверяем leaves
         const leave = leaves.find(l => l.employee === name && date >= l.start_date && date <= l.end_date);
-        if (leave) {
-            console.log(`Статус ${name} на ${date}: ${leave.type} (из leaves)`);
-            return leave.type;
-        }
-        // ПОТОМ проверяем бронь
+        if (leave) return leave.type;
         const booking = bookings.find(b => b.date === date && b.employee === name);
-        if (booking) {
-            console.log(`Статус ${name} на ${date}: office (из bookings)`);
-            return "office";
-        }
+        if (booking) return "office";
         return null;
     }
 
@@ -138,35 +130,19 @@
     }
 
     async function setHome(employee, date) {
-        console.log("setHome вызван для:", employee, date);
-        
-        // 1. Удаляем бронь
         await supabase.from("bookings").delete().eq("date", date).eq("employee", employee);
-        
-        // 2. Удаляем старую запись в leaves
         await supabase.from("leaves").delete().eq("employee", employee).eq("start_date", date);
-        
-        // 3. Вставляем запись "home"
         const { error } = await supabase.from("leaves").insert([{ 
-            employee: employee, 
-            start_date: date, 
-            end_date: date, 
-            type: "home" 
+            employee, start_date: date, end_date: date, type: "home" 
         }]);
-        
         if (error) console.error("Ошибка вставки home:", error);
-        else console.log("✅ Home запись добавлена");
-        
         await loadData();
         renderAll();
     }
 
     async function setVacation(employee, start, end, type) {
         await supabase.from("leaves").delete().eq("employee", employee).eq("start_date", start);
-        const { error } = await supabase.from("leaves").insert([{ 
-            employee, start_date: start, end_date: end, type 
-        }]);
-        if (error) console.error("Ошибка вставки:", error);
+        await supabase.from("leaves").insert([{ employee, start_date: start, end_date: end, type }]);
         await loadData();
         renderAll();
     }
@@ -279,8 +255,28 @@
                     const myPlace = getEmployeePlace(currentUser);
                     if (myPlace) {
                         await setBooking(selectedDate, currentUser, myPlace);
-                        alert(`✅ Забронировано: ${myPlace}`);
-                    } else alert("Нет закреплённого места");
+                        alert(`✅ Забронировано ваше место: ${myPlace}`);
+                    } else {
+                        // Показываем свободные места
+                        const freePlaces = places.filter(p => {
+                            const color = getPlaceColor(p.name, selectedDate);
+                            return color === "green";
+                        });
+                        
+                        if (freePlaces.length === 0) {
+                            alert("❌ Нет свободных мест на этот день");
+                        } else {
+                            const list = freePlaces.map(p => `${p.name}`).join(", ");
+                            const chosen = prompt(`Свободные места: ${list}\n\nВведите название места, которое хотите забронировать:`);
+                            
+                            if (chosen && freePlaces.some(p => p.name === chosen)) {
+                                await setBooking(selectedDate, currentUser, chosen);
+                                alert(`✅ Забронировано место: ${chosen}`);
+                            } else if (chosen) {
+                                alert("❌ Неверное название места");
+                            }
+                        }
+                    }
                 } 
                 else if (status === "home") {
                     await setHome(currentUser, selectedDate);
