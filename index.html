@@ -285,7 +285,7 @@
             for (const y of group) {
                 let placesInRow = rows.get(y);
                 placesInRow.sort((a, b) => a.pos_x - b.pos_x);
-                placesInRow.reverse();
+                // placesInRow.reverse();
                 
                 html += `<div class="map-row">`;
                 html += `<div class="map-row-inner">`;
