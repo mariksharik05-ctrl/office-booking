@@ -7,7 +7,7 @@
     <style>
         * { box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
         body { background: #f2f2f7; margin: 0; padding: 16px; }
-        .container { max-width: 800px; margin: 0 auto; }
+        .container { max-width: 1200px; margin: 0 auto; }
         .login-card { background: white; border-radius: 28px; padding: 32px 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-top: 40px; }
         .login-card h2 { margin: 0 0 24px; text-align: center; }
         select, button { width: 100%; padding: 14px; margin: 8px 0; border-radius: 14px; border: 1px solid #c6c6c8; font-size: 16px; }
@@ -25,16 +25,17 @@
         .schedule-grid { display: flex; flex-direction: column; gap: 12px; }
         .schedule-day { display: flex; align-items: center; justify-content: space-between; background: #f9f9f9; border-radius: 16px; padding: 12px 16px; cursor: pointer; transition: 0.2s; }
         .schedule-day.past { opacity: 0.5; background: #e0e0e0; cursor: not-allowed; }
-        .schedule-day.current-lock { background: #fff3e0; cursor: pointer; }
+        .schedule-day.current-lock { background: #fff3e0; }
         .schedule-day.office { background: #007aff20; border-left: 4px solid #007aff; }
         .schedule-day.home { background: #34c75920; border-left: 4px solid #34c759; }
-        .day-name { font-weight: 600; font-size: 16px; width: 100px; }
+        .day-name { font-weight: 600; font-size: 16px; width: 140px; }
         .day-status { font-size: 14px; padding: 4px 12px; border-radius: 20px; }
         .status-office { background: #007aff; color: white; }
         .status-home { background: #34c759; color: white; }
-        .status-warning { background: #ff9f0a; color: white; }
         
-        .map-place { background: #f2f2f7; border-radius: 12px; padding: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .map-grid { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 20px; }
+        .map-row { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+        .map-place { width: 100px; padding: 12px 8px; border-radius: 16px; text-align: center; cursor: pointer; transition: 0.1s; }
         .place-red { background: #ff3b30; color: white; }
         .place-green { background: #34c759; color: white; }
         .place-blue { background: #007aff; color: white; }
@@ -42,10 +43,9 @@
         .colleagues-list { background: #f2f2f7; padding: 16px; border-radius: 16px; margin-top: 20px; }
         .admin-panel { background: #fff3e0; padding: 16px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #ffd700; }
         .flex-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-        input, select { padding: 8px; border-radius: 8px; border: 1px solid #ccc; }
+        input { padding: 8px; border-radius: 8px; border: 1px solid #ccc; }
         .loader { text-align: center; padding: 40px; color: #666; }
-        .map-row { margin-bottom: 16px; }
-        .map-grid { display: flex; flex-direction: column; }
+        @media (max-width: 700px) { .map-place { width: 70px; font-size: 11px; } }
     </style>
 </head>
 <body>
@@ -76,7 +76,7 @@
             <div class="info-card" style="margin-top: 20px; font-size: 14px;">
                 💡 <strong>Правила:</strong><br>
                 • Будущие недели — можно менять (офис ↔ дом)<br>
-                • Текущая неделя — можно только освободить место (дом)<br>
+                • Текущая неделя — можно только освободить место (офис → дом)<br>
                 • Прошедшие дни — нельзя менять
             </div>
         </div>
@@ -168,17 +168,15 @@
         const myPlace = employees.find(e => e.name === currentUser)?.place;
         const dateObj = new Date(dateYMD);
         const today = new Date();
-        today.setHours(0,0,0,0);
+        today.setHours(0, 0, 0, 0);
         const weekStart = getWeekStart(today);
         
-        // Прошедшие дни
         if (dateObj < weekStart) {
             alert("❌ Нельзя изменить прошедшие дни");
             return false;
         }
         
-        // Текущая неделя (начиная с сегодня)
-        const isCurrentWeek = dateObj >= weekStart && dateObj < new Date(weekStart.getTime() + 7*24*60*60*1000);
+        const isCurrentWeek = dateObj >= weekStart && dateObj < new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
         const isTodayOrFuture = dateObj >= today;
         
         if (isCurrentWeek && isTodayOrFuture && newStatus === "office") {
@@ -187,7 +185,10 @@
         }
         
         if (newStatus === "office") {
-            if (!myPlace) { alert("У вас нет закреплённого места"); return false; }
+            if (!myPlace) {
+                alert("У вас нет закреплённого места");
+                return false;
+            }
             const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
             if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
             await supabase.from("bookings").insert([{ date: dateYMD, employee: currentUser, place: myPlace }]);
@@ -292,7 +293,6 @@
         }
         const dateObj = new Date(dateYMD);
         
-        // Группируем места по pos_y
         const rows = new Map();
         for (const place of places) {
             const y = place.pos_y;
@@ -329,7 +329,6 @@
         }
         document.getElementById("officeMap").innerHTML = html;
         
-        // Список коллег
         const colleagues = [];
         for (const booking of bookings.filter(b => b.date === dateYMD)) {
             if (!colleagues.includes(booking.employee)) colleagues.push(booking.employee);
@@ -343,7 +342,6 @@
         }
         document.getElementById("colleaguesList").innerHTML = `<h4>👥 Коллеги в офисе (${formatDMY(dateObj)})</h4><ul>${colleagues.map(c => `<li>${c}</li>`).join('')}</ul>`;
         
-        // Обработчики кликов на карте
         document.querySelectorAll(".map-place").forEach(el => {
             if (el.classList.contains('place-green')) {
                 el.onclick = async () => {
