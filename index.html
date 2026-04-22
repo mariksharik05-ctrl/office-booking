@@ -163,19 +163,33 @@
     function getPlaceColor(placeName, dateYMD) {
         const owner = employees.find(e => e.place === placeName);
         
+        // Проверяем, забронировал ли текущий пользователь это место
+        const bookedByMe = bookings.some(b => b.date === dateYMD && b.place === placeName && b.employee === currentUser);
+        
+        // Если место забронировано текущим пользователем — синий
+        if (bookedByMe) {
+            return "blue";
+        }
+        
+        // Если у места нет владельца
         if (!owner) {
             const isBooked = bookings.some(b => b.date === dateYMD && b.place === placeName);
-            if (!isBooked) return "green";
-            const bookedByMe = bookings.some(b => b.date === dateYMD && b.place === placeName && b.employee === currentUser);
-            return bookedByMe ? "blue" : "red";
+            return isBooked ? "red" : "green";
         }
         
         const status = getEmployeeStatus(owner.name, dateYMD);
         
+        // Место принадлежит текущему пользователю
         if (owner.name === currentUser) {
+            // Если владелец отметил "в офисе" — место синее
+            if (status === "office") {
+                return "blue";
+            }
+            // Своё место всегда зелёное для владельца (может забронировать)
             return "green";
         }
         
+        // Место другого пользователя
         if (status === "office") {
             return "red";
         }
