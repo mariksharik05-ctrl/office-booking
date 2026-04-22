@@ -25,10 +25,9 @@
         .schedule-grid { display: flex; flex-direction: column; gap: 12px; }
         .schedule-day { display: flex; align-items: center; justify-content: space-between; background: #f9f9f9; border-radius: 16px; padding: 12px 16px; cursor: pointer; transition: 0.2s; }
         .schedule-day.past { opacity: 0.5; background: #e0e0e0; cursor: not-allowed; }
-        .schedule-day.current-lock { background: #fff3e0; }
         .schedule-day.office { background: #007aff20; border-left: 4px solid #007aff; }
         .schedule-day.home { background: #34c75920; border-left: 4px solid #34c759; }
-        .day-name { font-weight: 600; font-size: 16px; width: 140px; }
+        .day-name { font-weight: 600; font-size: 16px; width: 120px; }
         .day-status { font-size: 14px; padding: 4px 12px; border-radius: 20px; }
         .status-office { background: #007aff; color: white; }
         .status-home { background: #34c759; color: white; }
@@ -74,10 +73,7 @@
             </div>
             <div id="scheduleList" class="schedule-grid"></div>
             <div class="info-card" style="margin-top: 20px; font-size: 14px;">
-                💡 <strong>Правила:</strong><br>
-                • Будущие недели — можно менять (офис ↔ дом)<br>
-                • Текущая неделя — можно только освободить место (офис → дом)<br>
-                • Прошедшие дни — нельзя менять
+                💡 Кликните по дню, чтобы изменить статус (офис ↔ дом)
             </div>
         </div>
         <div id="mapTab" class="tab-content">
@@ -180,7 +176,7 @@
         const isTodayOrFuture = dateObj >= today;
         
         if (isCurrentWeek && isTodayOrFuture && newStatus === "office") {
-            alert("⚠️ На текущей неделе можно только освободить место (отметить 'Из дома'), но нельзя добавить 'В офисе'");
+            alert("⚠️ На текущей неделе можно только освободить место (отметить 'Из дома')");
             return false;
         }
         
@@ -227,30 +223,15 @@
             const dateYMD = formatYMD(date);
             const status = await getUserStatusForDate(currentUser, date, dateYMD);
             const isPast = date < weekStart;
-            const isCurrentWeek = date >= weekStart && date < new Date(weekStart.getTime() + 7*24*60*60*1000);
-            const isTodayOrFuture = date >= today;
-            
-            let canEdit = false;
-            let editType = "";
-            if (!isPast) {
-                if (isCurrentWeek && isTodayOrFuture) {
-                    canEdit = true;
-                    editType = "only-home";
-                } else if (!isCurrentWeek) {
-                    canEdit = true;
-                    editType = "full";
-                }
-            }
             
             const statusText = status === "office" ? "🏢 В офисе" : "🏠 Из дома";
             const statusClass = status === "office" ? "status-office" : "status-home";
             let extraClass = "";
             if (isPast) extraClass = "past";
-            else if (editType === "only-home") extraClass = "current-lock";
             
             html += `
-                <div class="schedule-day ${status === "office" ? 'office' : 'home'} ${extraClass}" data-date="${dateYMD}" data-past="${isPast}" data-edit-type="${editType}" data-current-status="${status}">
-                    <span class="day-name">${days[i]} ${isPast ? '(прошёл)' : (editType === "only-home" ? '⚠️ только освободить' : '')}</span>
+                <div class="schedule-day ${status === "office" ? 'office' : 'home'} ${extraClass}" data-date="${dateYMD}" data-past="${isPast}" data-current-status="${status}">
+                    <span class="day-name">${days[i]}</span>
                     <span class="day-status ${statusClass}">${statusText}</span>
                 </div>
             `;
@@ -260,26 +241,14 @@
         
         document.querySelectorAll(".schedule-day").forEach(el => {
             if (el.dataset.past === "true") return;
-            const editType = el.dataset.editType;
             const currentStatus = el.dataset.currentStatus;
             
             el.onclick = async () => {
                 const dateYMD = el.dataset.date;
-                if (editType === "only-home") {
-                    if (currentStatus === "office") {
-                        if (await setUserStatus(dateYMD, "home")) {
-                            await renderSchedule();
-                            await renderMap();
-                        }
-                    } else {
-                        alert("⚠️ На текущей неделе можно только освободить место (отметить 'Из дома')");
-                    }
-                } else if (editType === "full") {
-                    const newStatus = currentStatus === "office" ? "home" : "office";
-                    if (await setUserStatus(dateYMD, newStatus)) {
-                        await renderSchedule();
-                        await renderMap();
-                    }
+                const newStatus = currentStatus === "office" ? "home" : "office";
+                if (await setUserStatus(dateYMD, newStatus)) {
+                    await renderSchedule();
+                    await renderMap();
                 }
             };
         });
@@ -323,7 +292,7 @@
                         else color = "green";
                     }
                 }
-                html += `<div class="map-place place-${color}"><strong>${place.name}</strong><span>${occupant || "свободно"}</span></div>`;
+                html += `<div class="map-place place-${color}"><strong>${place.name}</strong><br><span>${occupant || "свободно"}</span></div>`;
             }
             html += `</div>`;
         }
