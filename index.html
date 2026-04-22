@@ -33,27 +33,11 @@
         .loader { text-align: center; padding: 40px; color: #666; }
         @media (max-width: 500px) { .map-place { width: 70px; height: 70px; font-size: 12px; } }
         
-        /* Стили для карты */
-        .map-wrapper {
-            display: flex;
-            justify-content: center;
-            width: 100%;
-        }
-        .map-container {
-            display: inline-block;
-        }
-        .map-row-group {
-            margin-bottom: 32px;
-        }
-        .map-row {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 16px;
-        }
-        .map-row-inner {
-            display: flex;
-            gap: 16px;
-        }
+        .map-wrapper { display: flex; justify-content: center; width: 100%; }
+        .map-container { display: inline-block; }
+        .map-row-group { margin-bottom: 32px; }
+        .map-row { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+        .map-row-inner { display: flex; gap: 16px; }
         
         #prevMonthBtn, #nextMonthBtn {
             background: transparent;
@@ -68,9 +52,7 @@
             width: auto;
             min-width: 36px;
         }
-        #prevMonthBtn:hover, #nextMonthBtn:hover {
-            background: #e5e5ea;
-        }
+        #prevMonthBtn:hover, #nextMonthBtn:hover { background: #e5e5ea; }
     </style>
 </head>
 <body>
@@ -124,19 +106,31 @@
     let employees = [], places = [], bookings = [], leaves = [];
     let currentUser = null, currentMonth = new Date(), selectedDate = null;
 
+    // Кэш для цветов мест (чтобы не пересчитывать каждый раз)
+    let colorCache = new Map();
+
     async function loadData() {
-        const [empRes, placesRes, bookRes, leavesRes] = await Promise.all([
-            supabase.from("employees").select("*"),
-            supabase.from("places").select("*"),
-            supabase.from("bookings").select("*"),
-            supabase.from("leaves").select("*")
-        ]);
-        employees = empRes.data || [];
-        places = placesRes.data || [];
-        bookings = bookRes.data || [];
-        leaves = leavesRes.data || [];
-        console.log("✅ Данные загружены. Leaves:", leaves.length);
-        return true;
+        try {
+            const [empRes, placesRes, bookRes, leavesRes] = await Promise.all([
+                supabase.from("employees").select("*"),
+                supabase.from("places").select("*"),
+                supabase.from("bookings").select("*"),
+                supabase.from("leaves").select("*")
+            ]);
+            employees = empRes.data || [];
+            places = placesRes.data || [];
+            bookings = bookRes.data || [];
+            leaves = leavesRes.data || [];
+            
+            // Очищаем кэш цветов при загрузке новых данных
+            colorCache.clear();
+            
+            console.log(`✅ Загружено: ${employees.length} сотрудников, ${places.length} мест, ${bookings.length} броней, ${leaves.length} статусов`);
+            return true;
+        } catch(e) {
+            console.error("Ошибка загрузки:", e);
+            return false;
+        }
     }
 
     function getEmployeeStatus(name, date) {
@@ -152,40 +146,45 @@
     }
 
     function getPlaceColor(placeName, date) {
+        // Проверяем кэш
+        const cacheKey = `${placeName}_${date}_${currentUser}`;
+        if (colorCache.has(cacheKey)) {
+            return colorCache.get(cacheKey);
+        }
+        
+        let result;
         const owner = employees.find(e => e.place === placeName);
         
-        // Если у места нет владельца
         if (!owner) {
             const isBooked = bookings.some(b => b.date === date && b.place === placeName);
-            if (!isBooked) return "green";
-            // Проверяем, не текущий ли пользователь забронировал это место
-            const bookedByMe = bookings.some(b => b.date === date && b.place === placeName && b.employee === currentUser);
-            return bookedByMe ? "blue" : "red";
+            if (!isBooked) result = "green";
+            else {
+                const bookedByMe = bookings.some(b => b.date === date && b.place === placeName && b.employee === currentUser);
+                result = bookedByMe ? "blue" : "red";
+            }
+        } else {
+            const status = getEmployeeStatus(owner.name, date);
+            if (owner.name === currentUser) {
+                if (status === "office") result = "blue";
+                else if (status === "home" || status === "vacation" || status === "sick") result = "green";
+                else result = "gray";
+            } else {
+                if (status === "office") {
+                    const bookedByMe = bookings.some(b => b.date === date && b.place === placeName && b.employee === currentUser);
+                    result = bookedByMe ? "blue" : "red";
+                } else if (status === "home" || status === "vacation" || status === "sick") result = "green";
+                else result = "gray";
+            }
         }
         
-        const status = getEmployeeStatus(owner.name, date);
-        
-        // Место принадлежит текущему пользователю
-        if (owner.name === currentUser) {
-            if (status === "office") return "blue";  // Синий для своего забронированного
-            if (status === "home" || status === "vacation" || status === "sick") return "green";
-            return "gray";
-        }
-        
-        // Место другого пользователя
-        if (status === "office") {
-            // Проверяем, не текущий ли пользователь забронировал это место
-            const bookedByMe = bookings.some(b => b.date === date && b.place === placeName && b.employee === currentUser);
-            return bookedByMe ? "blue" : "red";
-        }
-        if (status === "home" || status === "vacation" || status === "sick") return "green";
-        
-        return "gray";
+        colorCache.set(cacheKey, result);
+        return result;
     }
 
     async function setBooking(date, employee, place) {
         await supabase.from("bookings").delete().eq("date", date).eq("employee", employee);
         if (place) await supabase.from("bookings").insert([{ date, employee, place }]);
+        colorCache.clear();
         await loadData();
         renderAll();
     }
@@ -197,6 +196,7 @@
             employee, start_date: date, end_date: date, type: "home" 
         }]);
         if (error) console.error("Ошибка вставки home:", error);
+        colorCache.clear();
         await loadData();
         renderAll();
     }
@@ -204,6 +204,7 @@
     async function setVacation(employee, start, end, type) {
         await supabase.from("leaves").delete().eq("employee", employee).eq("start_date", start);
         await supabase.from("leaves").insert([{ employee, start_date: start, end_date: end, type }]);
+        colorCache.clear();
         await loadData();
         renderAll();
     }
@@ -239,7 +240,6 @@
     function renderMap() {
         const date = document.getElementById("mapDatePicker").value || new Date().toISOString().slice(0,10);
         
-        // Группируем места по pos_y (ряды)
         const rows = new Map();
         for (const place of places) {
             const y = place.pos_y;
@@ -247,10 +247,8 @@
             rows.get(y).push(place);
         }
         
-        // Сортируем ряды по убыванию y (чтобы больший y был сверху)
         const sortedYs = Array.from(rows.keys()).sort((a, b) => b - a);
         
-        // Разбиваем на группы по 2 ряда
         const groups = [];
         for (let i = 0; i < sortedYs.length; i += 2) {
             groups.push(sortedYs.slice(i, i + 2));
@@ -261,9 +259,7 @@
             html += `<div class="map-row-group">`;
             for (const y of group) {
                 let placesInRow = rows.get(y);
-                // Сортируем по x (слева направо)
                 placesInRow.sort((a, b) => a.pos_x - b.pos_x);
-                // Разворачиваем для обратного порядка (чтобы x=0 был справа)
                 placesInRow.reverse();
                 
                 html += `<div class="map-row">`;
@@ -284,17 +280,25 @@
     function renderAll() { if (currentUser) { renderProfile(); renderCalendar(); renderMap(); } }
 
     async function initLogin() {
+        const loader = document.getElementById("loginLoader");
+        const select = document.getElementById("employeeSelect");
+        const pwdInput = document.getElementById("passwordInput");
+        const loginBtn = document.getElementById("loginBtn");
+        
         await loadData();
         if (!employees.length) {
-            document.getElementById("loginLoader").innerText = "❌ Нет данных.";
+            loader.innerText = "❌ Нет данных. Проверьте подключение к Supabase.";
             return;
         }
-        document.getElementById("loginLoader").style.display = "none";
-        const select = document.getElementById("employeeSelect");
+        
+        loader.style.display = "none";
         select.style.display = "block";
+        pwdInput.style.display = "none";
+        loginBtn.style.display = "block";
+        
         select.innerHTML = '<option value="">Выберите себя</option>' + employees.map(e => `<option value="${e.name}">${e.name}</option>`).join('');
-        document.getElementById("loginBtn").style.display = "block";
-        document.getElementById("loginBtn").onclick = () => {
+        
+        loginBtn.onclick = () => {
             const name = select.value;
             if (name && employees.some(e => e.name === name)) {
                 currentUser = name;
@@ -319,7 +323,9 @@
                 document.getElementById("mainApp").style.display = "block";
                 renderAll();
             });
-        } else initLogin();
+        } else {
+            initLogin();
+        }
         
         document.getElementById("logoutBtn")?.addEventListener("click", () => { localStorage.removeItem("currentUser"); location.reload(); });
         document.querySelectorAll(".tab-btn").forEach(btn => btn.onclick = () => {
@@ -337,7 +343,6 @@
             btn.onclick = async () => {
                 if (!selectedDate) return alert("Выберите день");
                 const status = btn.dataset.status;
-                console.log("Нажато:", status, selectedDate);
                 
                 if (status === "office") {
                     const myPlace = getEmployeePlace(currentUser);
@@ -349,18 +354,13 @@
                             const color = getPlaceColor(p.name, selectedDate);
                             return color === "green";
                         });
-                        
-                        if (freePlaces.length === 0) {
-                            alert("❌ Нет свободных мест на этот день");
-                        } else {
+                        if (freePlaces.length === 0) alert("❌ Нет свободных мест");
+                        else {
                             const list = freePlaces.map(p => `${p.name}`).join(", ");
-                            const chosen = prompt(`Свободные места: ${list}\n\nВведите название места, которое хотите забронировать:`);
-                            
+                            const chosen = prompt(`Свободные места: ${list}\n\nВведите название:`);
                             if (chosen && freePlaces.some(p => p.name === chosen)) {
                                 await setBooking(selectedDate, currentUser, chosen);
-                                alert(`✅ Забронировано место: ${chosen}`);
-                            } else if (chosen) {
-                                alert("❌ Неверное название места");
+                                alert(`✅ Забронировано: ${chosen}`);
                             }
                         }
                     }
@@ -371,17 +371,13 @@
                 } 
                 else if (status === "vacation") {
                     const end = prompt("Дата окончания (ГГГГ-ММ-ДД):");
-                    if (end) {
-                        await setVacation(currentUser, selectedDate, end, "vacation");
-                        alert("✅ Отпуск сохранён");
-                    }
+                    if (end) await setVacation(currentUser, selectedDate, end, "vacation");
+                    alert("✅ Отпуск сохранён");
                 } 
                 else if (status === "sick") {
                     const end = prompt("Дата окончания (ГГГГ-ММ-ДД):");
-                    if (end) {
-                        await setVacation(currentUser, selectedDate, end, "sick");
-                        alert("✅ Больничный сохранён");
-                    }
+                    if (end) await setVacation(currentUser, selectedDate, end, "sick");
+                    alert("✅ Больничный сохранён");
                 }
                 renderAll();
             };
