@@ -92,7 +92,7 @@
         </div>
         <div id="mapTab" class="tab-content">
             <h3>Карта мест</h3>
-            <input type="text" id="mapDatePicker" placeholder="ДД.ММ.ГГГГ" style="margin-bottom: 16px;">
+            <input type="date" id="mapDatePicker" style="margin-bottom: 16px;">
             <div id="officeMap" class="map-wrapper"></div>
         </div>
     </div>
@@ -128,9 +128,9 @@
         return dateStr;
     }
 
-    function getTodayDMY() {
+    function getTodayYMD() {
         const today = new Date();
-        return `${String(today.getDate()).padStart(2,'0')}.${String(today.getMonth()+1).padStart(2,'0')}.${today.getFullYear()}`;
+        return `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
     }
 
     async function loadData() {
@@ -172,12 +172,10 @@
         
         const status = getEmployeeStatus(owner.name, dateYMD);
         
-        // Место принадлежит текущему пользователю — всегда зелёное для него
         if (owner.name === currentUser) {
             return "green";
         }
         
-        // Место другого пользователя
         if (status === "office") {
             return "red";
         }
@@ -211,7 +209,7 @@
     }
 
     function renderProfile() {
-        const todayYMD = formatDateToYMD(getTodayDMY());
+        const todayYMD = getTodayYMD();
         const status = getEmployeeStatus(currentUser, todayYMD);
         let statusText = "";
         if (status === "office") statusText = "В офисе";
@@ -248,11 +246,10 @@
     }
 
     function renderMap() {
-        const datePicker = document.getElementById("mapDatePicker");
-        let dateYMD = formatDateToYMD(datePicker.value);
+        let dateYMD = document.getElementById("mapDatePicker").value;
         if (!dateYMD) {
-            dateYMD = formatDateToYMD(getTodayDMY());
-            datePicker.value = getTodayDMY();
+            dateYMD = getTodayYMD();
+            document.getElementById("mapDatePicker").value = dateYMD;
         }
         
         const rows = new Map();
@@ -296,7 +293,7 @@
                 const color = el.classList.contains('place-green') ? 'green' : 
                              (el.classList.contains('place-blue') ? 'blue' : 
                              (el.classList.contains('place-red') ? 'red' : 'gray'));
-                const currentDateYMD = formatDateToYMD(document.getElementById("mapDatePicker").value);
+                const currentDateYMD = document.getElementById("mapDatePicker").value;
                 
                 if (color === "green") {
                     const myPlace = getEmployeePlace(currentUser);
