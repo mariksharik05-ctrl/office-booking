@@ -206,7 +206,7 @@
             rows.get(y).push(place);
         }
         
-        // Сортируем ряды по убыванию y (чтобы y=4 был сверху, y=0 снизу)
+        // Сортируем ряды по убыванию y (чтобы больший y был сверху)
         const sortedYs = Array.from(rows.keys()).sort((a, b) => b - a);
         
         // Разбиваем на группы по 2 ряда
@@ -220,11 +220,13 @@
             html += `<div class="map-row-group" style="margin-bottom: 32px;">`;
             for (const y of group) {
                 let placesInRow = rows.get(y);
-                // Сортируем по x (слева направо), потом разворачиваем для обратного порядка
+                // Сортируем по x (слева направо)
                 placesInRow.sort((a, b) => a.pos_x - b.pos_x);
-                placesInRow.reverse(); // теперь x=0 будет справа
+                // Разворачиваем для обратного порядка (чтобы x=0 был справа)
+                placesInRow.reverse();
                 
-                html += `<div style="display: flex; gap: 16px; justify-content: flex-end; margin-bottom: 16px;">`;
+                // Выравнивание по центру
+                html += `<div style="display: flex; gap: 16px; justify-content: center; margin-bottom: 16px;">`;
                 for (const place of placesInRow) {
                     const color = getPlaceColor(place.name, date);
                     html += `<div class="map-place place-${color}" data-place="${place.name}">${place.name}</div>`;
