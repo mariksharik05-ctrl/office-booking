@@ -23,7 +23,29 @@
         .cal-day { background: #f2f2f7; border-radius: 12px; padding: 12px 4px; text-align: center; font-size: 14px; cursor: pointer; }
         .cal-day.selected { background: #007aff; color: white; }
         .cal-day.my-status { background: #007aff; color: white; }
-        .cal-day.past-day { background: #c0c0c0; color: #666; cursor: not-allowed; opacity: 0.6; }
+        
+        /* Прошедшие выходные (тёмно-розовые) */
+        .cal-day.past-weekend {
+            background: #d4a5a5;
+            color: #5a3a3a;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        
+        /* Будущие выходные (светло-розовые) */
+        .cal-day.future-weekend {
+            background: #f0d0d0;
+            color: #8b5a5a;
+        }
+        
+        /* Обычные прошедшие дни */
+        .cal-day.past-day {
+            background: #c0c0c0;
+            color: #666;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
         .status-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0; }
         .status-btn { flex: 1; padding: 12px; background: #f2f2f7; border-radius: 30px; text-align: center; cursor: pointer; font-weight: 500; }
         .map-place { width: 90px; height: 90px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-weight: 600; text-align: center; cursor: pointer; }
@@ -243,11 +265,16 @@
             const dateYMD = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
             const cellDate = new Date(year, month, d);
             const isPast = cellDate < today;
+            const isWeekend = (cellDate.getDay() === 6 || cellDate.getDay() === 0);
             const status = getEmployeeStatus(currentUser, dateYMD);
             
             let additionalClass = "";
-            if (isPast) {
+            if (isPast && isWeekend) {
+                additionalClass = "past-weekend";
+            } else if (isPast) {
                 additionalClass = "past-day";
+            } else if (isWeekend) {
+                additionalClass = "future-weekend";
             } else if (status) {
                 additionalClass = "my-status";
             }
