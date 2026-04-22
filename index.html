@@ -31,6 +31,7 @@
         .place-gray { background: #8e8e93; color: white; }
         .place-blue { background: #007aff; color: white; }
         .loader { text-align: center; padding: 40px; color: #666; }
+        .cal-day.my-status { background: #007aff; color: white; }
         @media (max-width: 500px) { .map-place { width: 70px; height: 70px; font-size: 12px; } }
         
         /* Стили для карты */
@@ -222,7 +223,7 @@
         for (let d = 1; d <= days; d++) {
             const date = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
             const status = getEmployeeStatus(currentUser, date);
-            html += `<div class="cal-day ${status ? 'booked' : ''}" data-date="${date}">${d}</div>`;
+            html += `<div class="cal-day ${status ? 'my-status' : ''}" data-date="${date}">${d}</div>`;
         }
         document.getElementById("calendarGrid").innerHTML = html;
         document.getElementById("monthYear").innerHTML = `${firstDay.toLocaleString('ru', {month:'long'})} ${year}`;
@@ -373,14 +374,14 @@
                     const end = prompt("Дата окончания (ГГГГ-ММ-ДД):");
                     if (end) {
                         await setVacation(currentUser, selectedDate, end, "vacation");
-                        alert("✅ Отпуск сохранён");
+                        alert(`🌴 Хорошего отдыха, ${currentUser}! ❤️`);
                     }
                 } 
                 else if (status === "sick") {
                     const end = prompt("Дата окончания (ГГГГ-ММ-ДД):");
                     if (end) {
                         await setVacation(currentUser, selectedDate, end, "sick");
-                        alert("✅ Больничный сохранён");
+                        alert(`🤒 Выздоравливай скорее, ${currentUser}! ❤️`);
                     }
                 }
                 renderAll();
