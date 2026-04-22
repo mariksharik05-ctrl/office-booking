@@ -34,8 +34,8 @@
         
         /* Будущие выходные (светло-розовые) */
         .cal-day.future-weekend {
-            background: #f0d0d0;
-            color: #8b5a5a;
+            background: #fce4e4;
+            color: #b05a5a;
         }
         
         /* Обычные прошедшие дни */
@@ -107,7 +107,7 @@
                 <hr><h4>Статус на этот день</h4>
                 <div class="status-buttons">
                     <div class="status-btn" data-status="office">🏢 В офисе</div>
-                    <div class="status-btn" data-status="home">🏠 Из дома</div>
+                    <div class="status-btn" data-status="home">🏠 Из дома / на Воздвиженке</div>
                     <div class="status-btn" data-status="vacation">🌴 Отпуск</div>
                     <div class="status-btn" data-status="sick">🤒 Больничный</div>
                 </div>
@@ -243,7 +243,7 @@
         const status = getEmployeeStatus(currentUser, todayYMD);
         let statusText = "";
         if (status === "office") statusText = "В офисе";
-        else if (status === "home") statusText = "Из дома";
+        else if (status === "home") statusText = "Из дома / на Воздвиженке";
         else if (status === "vacation") statusText = "В отпуске";
         else if (status === "sick") statusText = "На больничном";
         else statusText = "Не отмечено";
@@ -472,7 +472,7 @@
                 } 
                 else if (status === "home") {
                     await setHome(currentUser, selectedDate);
-                    alert(`✅ Отмечено как 'Из дома' на ${dateDMY}`);
+                    alert(`✅ Отмечено как 'Из дома / на Воздвиженке' на ${dateDMY}`);
                 } 
                 else if (status === "vacation") {
                     const endDMY = prompt("Дата окончания отпуска (ДД.ММ.ГГГГ):");
