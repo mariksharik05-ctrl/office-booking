@@ -73,7 +73,9 @@
             </div>
             <div id="scheduleList" class="schedule-grid"></div>
             <div class="info-card" style="margin-top: 20px; font-size: 14px;">
-                💡 Кликните по дню, чтобы изменить статус (офис ↔ дом)
+                💡 <strong>Правила:</strong><br>
+                • До воскресенья 23:59 — можно менять расписание на следующую неделю<br>
+                • С понедельника — изменения невозможны (только освободить место через карту, если заболели)
             </div>
         </div>
         <div id="mapTab" class="tab-content">
@@ -163,44 +165,55 @@
     async function setUserStatus(dateYMD, newStatus) {
         const myPlace = employees.find(e => e.name === currentUser)?.place;
         const dateObj = new Date(dateYMD);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const weekStart = getWeekStart(today);
+        const now = new Date();
+        const currentWeekStartDate = getWeekStart(now);
         
-        if (dateObj < weekStart) {
+        // Прошедшие дни
+        if (dateObj < currentWeekStartDate) {
             alert("❌ Нельзя изменить прошедшие дни");
             return false;
         }
         
-        const isCurrentWeek = dateObj >= weekStart && dateObj < new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-        const isTodayOrFuture = dateObj >= today;
+        // Будущие недели (начиная со следующего понедельника) — можно менять
+        const nextWeekStart = new Date(currentWeekStartDate);
+        nextWeekStart.setDate(currentWeekStartDate.getDate() + 7);
         
-        // НА ТЕКУЩЕЙ НЕДЕЛЕ МОЖНО ТОЛЬКО ОСВОБОДИТЬ МЕСТО (ОФИС → ДОМ)
-        if (isCurrentWeek && isTodayOrFuture && newStatus === "office") {
-            alert("⚠️ На текущей неделе можно только освободить место (отметить 'Из дома'), нельзя добавить 'В офисе'");
+        if (dateObj >= nextWeekStart) {
+            // Будущая неделя — можно менять в обе стороны
+            if (newStatus === "office") {
+                if (!myPlace) { alert("У вас нет закреплённого места"); return false; }
+                const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
+                if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
+                await supabase.from("bookings").insert([{ date: dateYMD, employee: currentUser, place: myPlace }]);
+            } else {
+                const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
+                if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
+            }
+            await loadData();
+            return true;
+        }
+        
+        // Текущая неделя
+        const nowDay = now.getDay();
+        const isMondayOrLater = nowDay >= 1 && nowDay <= 6;
+        
+        if (isMondayOrLater) {
+            alert("⚠️ Текущая неделя уже началась. Изменить расписание на эту неделю нельзя. Если вы заболели, освободите место через карту.");
             return false;
         }
         
-        if (newStatus === "home") {
-            const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
-            if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
-            await loadData();
-            return true;
-        }
-        
+        // Ещё воскресенье — можно менять
         if (newStatus === "office") {
-            if (!myPlace) {
-                alert("У вас нет закреплённого места");
-                return false;
-            }
+            if (!myPlace) { alert("У вас нет закреплённого места"); return false; }
             const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
             if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
             await supabase.from("bookings").insert([{ date: dateYMD, employee: currentUser, place: myPlace }]);
-            await loadData();
-            return true;
+        } else {
+            const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
+            if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
         }
-        
-        return false;
+        await loadData();
+        return true;
     }
 
     function renderProfile() {
@@ -221,7 +234,6 @@
         const weekDates = getWeekDates(currentWeekStart);
         const days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
         const today = new Date();
-        today.setHours(0,0,0,0);
         const weekStart = getWeekStart(today);
         
         let html = '';
