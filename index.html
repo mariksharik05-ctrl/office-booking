@@ -29,10 +29,11 @@
         .place-red { background: #ff3b30; color: white; }
         .place-green { background: #34c759; color: white; }
         .place-gray { background: #8e8e93; color: white; }
+        .place-blue { background: #007aff; color: white; }
         .loader { text-align: center; padding: 40px; color: #666; }
         @media (max-width: 500px) { .map-place { width: 70px; height: 70px; font-size: 12px; } }
         
-        /* Стили для карты — центрирование всей карты, ряды прижаты вправо */
+        /* Стили для карты */
         .map-wrapper {
             display: flex;
             justify-content: center;
@@ -152,11 +153,33 @@
 
     function getPlaceColor(placeName, date) {
         const owner = employees.find(e => e.place === placeName);
-        if (!owner) return bookings.some(b => b.date === date && b.place === placeName) ? "red" : "green";
+        
+        // Если у места нет владельца
+        if (!owner) {
+            const isBooked = bookings.some(b => b.date === date && b.place === placeName);
+            if (!isBooked) return "green";
+            // Проверяем, не текущий ли пользователь забронировал это место
+            const bookedByMe = bookings.some(b => b.date === date && b.place === placeName && b.employee === currentUser);
+            return bookedByMe ? "blue" : "red";
+        }
+        
         const status = getEmployeeStatus(owner.name, date);
-        if (owner.name === currentUser) return status === "office" ? "red" : (status ? "green" : "gray");
-        if (status === "office") return "red";
+        
+        // Место принадлежит текущему пользователю
+        if (owner.name === currentUser) {
+            if (status === "office") return "blue";  // Синий для своего забронированного
+            if (status === "home" || status === "vacation" || status === "sick") return "green";
+            return "gray";
+        }
+        
+        // Место другого пользователя
+        if (status === "office") {
+            // Проверяем, не текущий ли пользователь забронировал это место
+            const bookedByMe = bookings.some(b => b.date === date && b.place === placeName && b.employee === currentUser);
+            return bookedByMe ? "blue" : "red";
+        }
         if (status === "home" || status === "vacation" || status === "sick") return "green";
+        
         return "gray";
     }
 
