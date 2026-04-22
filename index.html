@@ -22,62 +22,28 @@
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 16px; }
         .cal-day { background: #f2f2f7; border-radius: 12px; padding: 12px 4px; text-align: center; font-size: 14px; cursor: pointer; }
         .cal-day.selected { background: #007aff; color: white; }
-        .cal-day.my-status { background: #007aff; color: white; }
-        
-        /* Прошедшие выходные (тёмно-розовые) */
-        .cal-day.past-weekend {
-            background: #d4a5a5;
-            color: #5a3a3a;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-        
-        /* Будущие выходные (светло-розовые) */
-        .cal-day.future-weekend {
-            background: #fce4e4;
-            color: #b05a5a;
-        }
-        
-        /* Обычные прошедшие дни */
-        .cal-day.past-day {
-            background: #c0c0c0;
-            color: #666;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-        
+        .cal-day.office { background: #007aff; color: white; }
+        .cal-day.home { background: #34c759; color: white; }
+        .cal-day.past { background: #c0c0c0; color: #666; cursor: not-allowed; opacity: 0.6; }
         .status-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0; }
         .status-btn { flex: 1; padding: 12px; background: #f2f2f7; border-radius: 30px; text-align: center; cursor: pointer; font-weight: 500; }
-        .map-place { width: 90px; height: 90px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-weight: 600; text-align: center; cursor: pointer; }
+        .map-place { width: 100px; border-radius: 12px; padding: 8px; text-align: center; cursor: pointer; font-size: 12px; }
         .place-red { background: #ff3b30; color: white; }
         .place-green { background: #34c759; color: white; }
         .place-gray { background: #8e8e93; color: white; }
         .place-blue { background: #007aff; color: white; }
         .loader { text-align: center; padding: 40px; color: #666; }
-        @media (max-width: 500px) { .map-place { width: 70px; height: 70px; font-size: 12px; } }
-        
-        .map-wrapper { display: flex; justify-content: center; width: 100%; }
-        .map-container { display: inline-block; }
-        .map-row-group { margin-bottom: 48px; }
-        .map-row-group:last-child { margin-bottom: 0; }
-        .map-row { display: flex; justify-content: flex-end; margin-bottom: 12px; }
-        .map-row:last-child { margin-bottom: 0; }
-        .map-row-inner { display: flex; gap: 16px; }
-        
-        #prevMonthBtn, #nextMonthBtn {
-            background: transparent;
-            border: none;
-            padding: 6px 10px;
-            font-size: 18px;
-            cursor: pointer;
-            font-weight: 400;
-            color: #007aff;
-            border-radius: 30px;
-            transition: 0.2s;
-            width: auto;
-            min-width: 36px;
-        }
-        #prevMonthBtn:hover, #nextMonthBtn:hover { background: #e5e5ea; }
+        .colleagues-list { background: #f2f2f7; padding: 16px; border-radius: 16px; margin-top: 20px; }
+        .colleagues-list h4 { margin: 0 0 12px 0; }
+        .colleagues-list ul { margin: 0; padding-left: 20px; }
+        .map-wrapper { display: flex; flex-direction: column; align-items: center; }
+        .map-row { display: flex; justify-content: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+        .week-selector { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+        .admin-panel { background: #fff3e0; padding: 16px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #ffd700; }
+        .admin-panel h4 { margin: 0 0 12px 0; color: #d4a000; }
+        input { padding: 8px; border-radius: 8px; border: 1px solid #ccc; }
+        .flex-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        @media (max-width: 700px) { .map-place { width: 70px; font-size: 10px; } .map-row { gap: 8px; } }
     </style>
 </head>
 <body>
@@ -94,29 +60,31 @@
     <div id="mainApp" style="display: none;">
         <div class="tabs">
             <button class="tab-btn active" data-tab="profile">👤 Мой кабинет</button>
-            <button class="tab-btn" data-tab="calendar">📅 Календарь</button>
+            <button class="tab-btn" data-tab="calendar">📅 Расписание</button>
             <button class="tab-btn" data-tab="map">🗺️ Карта мест</button>
         </div>
         <div id="profileTab" class="tab-content active"><div id="profileInfo"></div><button id="logoutBtn" class="logout-btn">🚪 Выйти</button></div>
         <div id="calendarTab" class="tab-content">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <button id="prevMonthBtn">◀</button><h3 id="monthYear"></h3><button id="nextMonthBtn">▶</button>
+            <div class="week-selector">
+                <button id="prevWeekBtn">◀ Предыдущая</button>
+                <span id="weekRange"></span>
+                <button id="nextWeekBtn">Следующая ▶</button>
             </div>
             <div class="calendar-grid" id="calendarGrid"></div>
             <div id="statusPanel" style="display: none; margin-top: 20px;">
-                <hr><h4>Статус на этот день</h4>
+                <hr><h4>Изменить статус</h4>
                 <div class="status-buttons">
                     <div class="status-btn" data-status="office">🏢 В офисе</div>
-                    <div class="status-btn" data-status="home">🏠 Из дома / на Воздвиженке</div>
-                    <div class="status-btn" data-status="vacation">🌴 Отпуск</div>
-                    <div class="status-btn" data-status="sick">🤒 Больничный</div>
+                    <div class="status-btn" data-status="home">🏠 Из дома</div>
                 </div>
+                <button id="clearStatusBtn" style="margin-top: 10px;">Освободить место (только если заболел)</button>
             </div>
         </div>
         <div id="mapTab" class="tab-content">
             <h3>Карта мест</h3>
             <input type="date" id="mapDatePicker" style="margin-bottom: 16px;">
             <div id="officeMap" class="map-wrapper"></div>
+            <div id="colleaguesList" class="colleagues-list"></div>
         </div>
     </div>
 </div>
@@ -128,184 +96,174 @@
     const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlobmphZ3NwamhlbXd1cXJzdG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NzgwMDUsImV4cCI6MjA5MjI1NDAwNX0.YJoWnjP_Qe8w2cFxT6EgWQHSCyw7OFWTVMMxJ-L3JFo";
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let employees = [], places = [], bookings = [], leaves = [];
-    let currentUser = null, currentMonth = new Date(), selectedDate = null;
+    let employees = [], places = [], schedules = [], bookings = [], leaves = [];
+    let currentUser = null;
+    let currentWeekStart = null;
+    let selectedDate = null;
 
-    function formatDateToYMD(dateStr) {
-        if (!dateStr) return null;
-        if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr;
-        const parts = dateStr.split('.');
-        if (parts.length === 3) {
-            return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+    function getWeekDates(startDate) {
+        const dates = [];
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(startDate);
+            d.setDate(startDate.getDate() + i);
+            dates.push(d);
         }
-        return null;
+        return dates;
     }
 
-    function formatDateToDMY(dateStr) {
-        if (!dateStr) return '';
-        if (dateStr.match(/^\d{2}\.\d{2}\.\d{4}$/)) return dateStr;
-        const parts = dateStr.split('-');
-        if (parts.length === 3) {
-            return `${parts[2]}.${parts[1]}.${parts[0]}`;
-        }
-        return dateStr;
+    function formatYMD(date) {
+        return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
     }
 
-    function getTodayYMD() {
-        const today = new Date();
-        return `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    function formatDMY(date) {
+        return `${String(date.getDate()).padStart(2,'0')}.${String(date.getMonth()+1).padStart(2,'0')}.${date.getFullYear()}`;
+    }
+
+    function getWeekStart(date) {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = (day === 0 ? 6 : day - 1);
+        d.setDate(d.getDate() - diff);
+        d.setHours(0,0,0,0);
+        return d;
     }
 
     async function loadData() {
-        const [empRes, placesRes, bookRes, leavesRes] = await Promise.all([
+        const [empRes, placesRes, schedRes, bookRes, leavesRes] = await Promise.all([
             supabase.from("employees").select("*"),
             supabase.from("places").select("*"),
+            supabase.from("schedules").select("*"),
             supabase.from("bookings").select("*"),
             supabase.from("leaves").select("*")
         ]);
         employees = empRes.data || [];
         places = placesRes.data || [];
+        schedules = schedRes.data || [];
         bookings = bookRes.data || [];
         leaves = leavesRes.data || [];
         console.log("✅ Данные загружены");
         return true;
     }
 
-    function getEmployeeStatus(name, dateYMD) {
-        const leave = leaves.find(l => l.employee === name && dateYMD >= l.start_date && dateYMD <= l.end_date);
-        if (leave) return leave.type;
-        const booking = bookings.find(b => b.date === dateYMD && b.employee === name);
+    function getScheduleForEmployee(employeeName) {
+        return schedules.find(s => s.employee === employeeName);
+    }
+
+    function isOnLeave(employeeName, dateYMD) {
+        return leaves.some(l => l.employee === employeeName && dateYMD >= l.start_date && dateYMD <= l.end_date);
+    }
+
+    function getDefaultStatus(employeeName, date) {
+        const schedule = getScheduleForEmployee(employeeName);
+        if (!schedule) return 0;
+        const dayOfWeek = date.getDay();
+        const dayMap = {1:'mon',2:'tue',3:'wed',4:'thu',5:'fri',6:'sat',0:'sun'};
+        return schedule[dayMap[dayOfWeek]] || 0;
+    }
+
+    function getCurrentStatus(employeeName, dateYMD, dateObj) {
+        const booking = bookings.find(b => b.date === dateYMD && b.employee === employeeName);
         if (booking) return "office";
-        return null;
+        const isFuture = dateObj >= getWeekStart(new Date());
+        if (!isFuture) return null;
+        const defaultStatus = getDefaultStatus(employeeName, dateObj);
+        return defaultStatus === 1 ? "office" : "home";
     }
 
-    function getEmployeePlace(name) {
-        return employees.find(e => e.name === name)?.place || null;
-    }
-
-    function getPlaceColor(placeName, dateYMD) {
-        const owner = employees.find(e => e.place === placeName);
-        
-        const bookedByMe = bookings.some(b => b.date === dateYMD && b.place === placeName && b.employee === currentUser);
-        
-        if (bookedByMe) {
-            return "blue";
-        }
-        
-        if (!owner) {
-            const isBooked = bookings.some(b => b.date === dateYMD && b.place === placeName);
-            return isBooked ? "red" : "green";
-        }
-        
-        const status = getEmployeeStatus(owner.name, dateYMD);
-        
-        if (owner.name === currentUser) {
-            if (status === "office") {
-                return "blue";
+    async function applyScheduleForWeek(weekStart) {
+        const weekDates = getWeekDates(weekStart);
+        for (const emp of employees) {
+            if (!emp.place) continue;
+            for (const date of weekDates) {
+                const dateYMD = formatYMD(date);
+                const isOnLeaveFlag = isOnLeave(emp.name, dateYMD);
+                const defaultStatus = getDefaultStatus(emp.name, date);
+                const existingBooking = bookings.find(b => b.date === dateYMD && b.employee === emp.name);
+                if (isOnLeaveFlag) {
+                    if (existingBooking) await supabase.from("bookings").delete().eq("id", existingBooking.id);
+                } else if (defaultStatus === 1 && !existingBooking) {
+                    await supabase.from("bookings").insert([{ date: dateYMD, employee: emp.name, place: emp.place }]);
+                } else if (defaultStatus === 0 && existingBooking) {
+                    await supabase.from("bookings").delete().eq("id", existingBooking.id);
+                }
             }
-            return "green";
         }
-        
-        if (status === "office") {
-            return "red";
-        }
-        if (status === "home" || status === "vacation" || status === "sick") {
-            return "green";
-        }
-        
-        return "gray";
+        await loadData();
     }
 
     async function setBooking(dateYMD, employee, place) {
-        await supabase.from("bookings").delete().eq("date", dateYMD).eq("employee", employee);
+        const existing = bookings.find(b => b.date === dateYMD && b.employee === employee);
+        if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
         if (place) await supabase.from("bookings").insert([{ date: dateYMD, employee, place }]);
         await loadData();
         renderAll();
     }
 
-    async function setHome(employee, dateYMD) {
-        await supabase.from("bookings").delete().eq("date", dateYMD).eq("employee", employee);
-        await supabase.from("leaves").delete().eq("employee", employee).eq("start_date", dateYMD);
-        await supabase.from("leaves").insert([{ employee, start_date: dateYMD, end_date: dateYMD, type: "home" }]);
-        await loadData();
-        renderAll();
-    }
-
-    async function setVacation(employee, startYMD, endYMD, type) {
-        await supabase.from("leaves").delete().eq("employee", employee).eq("start_date", startYMD);
-        await supabase.from("leaves").insert([{ employee, start_date: startYMD, end_date: endYMD, type }]);
+    async function removeBooking(dateYMD, employee) {
+        const existing = bookings.find(b => b.date === dateYMD && b.employee === employee);
+        if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
         await loadData();
         renderAll();
     }
 
     function renderProfile() {
-        const todayYMD = getTodayYMD();
-        const status = getEmployeeStatus(currentUser, todayYMD);
-        let statusText = "";
-        if (status === "office") statusText = "В офисе";
-        else if (status === "home") statusText = "Из дома / на Воздвиженке";
-        else if (status === "vacation") statusText = "В отпуске";
-        else if (status === "sick") statusText = "На больничном";
-        else statusText = "Не отмечено";
-        
-        document.getElementById("profileInfo").innerHTML = `<h2>👋 ${currentUser}</h2><div class="info-card"><strong>Место:</strong> ${getEmployeePlace(currentUser) || "Нет"}<br><strong>Сегодня:</strong> ${statusText}</div>`;
+        const place = employees.find(e => e.name === currentUser)?.place || "Нет";
+        document.getElementById("profileInfo").innerHTML = `<h2>👋 ${currentUser}</h2><div class="info-card"><strong>Место:</strong> ${place}</div>`;
     }
 
     function renderCalendar() {
-        const year = currentMonth.getFullYear(), month = currentMonth.getMonth();
-        const firstDay = new Date(year, month, 1);
-        const start = (firstDay.getDay() + 6) % 7;
-        const days = new Date(year, month + 1, 0).getDate();
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        if (!currentWeekStart) return;
+        const weekDates = getWeekDates(currentWeekStart);
+        const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+        let html = `<div class="calendar-grid" style="grid-template-columns: repeat(7, 1fr);"><div></div>`;
+        for (let d of days) html += `<div style="text-align:center; font-weight:bold;">${d}</div>`;
+        html += `<div style="text-align:center; font-weight:bold;">Действие</div>`;
         
-        let html = "";
-        for (let i = 0; i < start; i++) html += "<div></div>";
-        for (let d = 1; d <= days; d++) {
-            const dateYMD = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            const cellDate = new Date(year, month, d);
-            const isPast = cellDate < today;
-            const isWeekend = (cellDate.getDay() === 6 || cellDate.getDay() === 0);
-            const status = getEmployeeStatus(currentUser, dateYMD);
-            
-            let additionalClass = "";
-            if (isPast && isWeekend) {
-                additionalClass = "past-weekend";
-            } else if (isPast) {
-                additionalClass = "past-day";
-            } else if (isWeekend) {
-                additionalClass = "future-weekend";
-            } else if (status) {
-                additionalClass = "my-status";
+        for (let emp of employees) {
+            html += `<div style="font-weight:500;">${emp.name}</div>`;
+            for (let i=0; i<7; i++) {
+                const date = weekDates[i];
+                const dateYMD = formatYMD(date);
+                const status = getCurrentStatus(emp.name, dateYMD, date);
+                let statusText = "", statusClass = "";
+                if (status === "office") { statusText = "🏢"; statusClass = "office"; }
+                else if (status === "home") { statusText = "🏠"; statusClass = "home"; }
+                else { statusText = "❓"; statusClass = "past"; }
+                const isPast = date < getWeekStart(new Date());
+                html += `<div class="cal-day ${statusClass} ${isPast ? 'past' : ''}" data-date="${dateYMD}" data-employee="${emp.name}" data-status="${status}" data-past="${isPast}">${statusText}</div>`;
             }
-            
-            html += `<div class="cal-day ${additionalClass}" data-date="${dateYMD}" data-past="${isPast}">${d}</div>`;
+            html += `<div><button class="edit-status-btn" data-employee="${emp.name}">✏️</button></div>`;
         }
+        html += `</div>`;
         document.getElementById("calendarGrid").innerHTML = html;
-        document.getElementById("monthYear").innerHTML = `${firstDay.toLocaleString('ru', {month:'long'})} ${year}`;
+        document.getElementById("weekRange").innerHTML = `${formatDMY(weekDates[0])} — ${formatDMY(weekDates[6])}`;
         
-        document.querySelectorAll(".cal-day").forEach(el => {
-            const isPast = el.dataset.past === "true";
-            if (!isPast) {
-                el.onclick = () => {
-                    selectedDate = el.dataset.date;
-                    document.getElementById("statusPanel").style.display = "block";
-                    document.querySelectorAll(".cal-day").forEach(d => d.style.background = "");
-                    el.style.background = "#cce5ff";
-                };
-            } else {
-                el.onclick = null;
-                el.style.cursor = "not-allowed";
-            }
+        document.querySelectorAll(".edit-status-btn").forEach(btn => {
+            btn.onclick = () => {
+                const empName = btn.dataset.employee;
+                if (empName !== currentUser) { alert("Вы можете редактировать только своё расписание"); return; }
+                selectedDate = null;
+                document.getElementById("statusPanel").style.display = "block";
+                const cells = document.querySelectorAll(`.cal-day[data-employee="${empName}"]`);
+                cells.forEach(cell => {
+                    cell.onclick = () => {
+                        selectedDate = cell.dataset.date;
+                        document.querySelectorAll(".cal-day").forEach(d => d.style.background = "");
+                        cell.style.background = "#cce5ff";
+                    };
+                });
+            };
         });
     }
 
     function renderMap() {
         let dateYMD = document.getElementById("mapDatePicker").value;
         if (!dateYMD) {
-            dateYMD = getTodayYMD();
+            dateYMD = formatYMD(new Date());
             document.getElementById("mapDatePicker").value = dateYMD;
         }
+        const dateObj = new Date(dateYMD);
+        const isPast = dateObj < getWeekStart(new Date());
         
         const rows = new Map();
         for (const place of places) {
@@ -313,92 +271,92 @@
             if (!rows.has(y)) rows.set(y, []);
             rows.get(y).push(place);
         }
-        
         const sortedYs = Array.from(rows.keys()).sort((a, b) => b - a);
-        const groups = [];
-        for (let i = 0; i < sortedYs.length; i += 2) {
-            groups.push(sortedYs.slice(i, i + 2));
-        }
         
-        let html = `<div class="map-container">`;
-        for (const group of groups) {
-            html += `<div class="map-row-group">`;
-            for (const y of group) {
-                let placesInRow = rows.get(y);
-                placesInRow.sort((a, b) => a.pos_x - b.pos_x);
-                
-                html += `<div class="map-row">`;
-                html += `<div class="map-row-inner">`;
-                for (const place of placesInRow) {
-                    const color = getPlaceColor(place.name, dateYMD);
-                    html += `<div class="map-place place-${color}" data-place="${place.name}">${place.name}</div>`;
+        let html = "";
+        for (const y of sortedYs) {
+            let placesInRow = rows.get(y);
+            placesInRow.sort((a, b) => a.pos_x - b.pos_x);
+            html += `<div class="map-row">`;
+            for (const place of placesInRow) {
+                const booking = bookings.find(b => b.date === dateYMD && b.place === place.name);
+                const employee = employees.find(e => e.place === place.name);
+                let color = "green", occupant = "";
+                if (booking) {
+                    color = booking.employee === currentUser ? "blue" : "red";
+                    occupant = booking.employee;
+                } else if (employee && !isPast) {
+                    const status = getCurrentStatus(employee.name, dateYMD, dateObj);
+                    if (status === "office") { color = "red"; occupant = employee.name; }
+                    else if (status === "home") color = "green";
+                    else color = "gray";
                 }
-                html += `</div></div>`;
+                html += `<div class="map-place place-${color}" data-place="${place.name}">${place.name}<br><small>${occupant || "свободно"}</small></div>`;
             }
             html += `</div>`;
         }
-        html += `</div>`;
-        
         document.getElementById("officeMap").innerHTML = html;
         
+        const colleagues = [];
+        for (const booking of bookings.filter(b => b.date === dateYMD)) {
+            colleagues.push(booking.employee);
+        }
+        for (const emp of employees) {
+            if (!emp.place) continue;
+            const status = getCurrentStatus(emp.name, dateYMD, dateObj);
+            if (status === "office" && !colleagues.includes(emp.name)) colleagues.push(emp.name);
+        }
+        document.getElementById("colleaguesList").innerHTML = `<h4>👥 Коллеги в офисе (${formatDMY(dateObj)})</h4><ul>${colleagues.map(c => `<li>${c}</li>`).join('')}</ul>`;
+        
         document.querySelectorAll(".map-place").forEach(el => {
+            if (isPast) return;
             el.onclick = async () => {
                 const placeName = el.dataset.place;
-                const color = el.classList.contains('place-green') ? 'green' : 
-                             (el.classList.contains('place-blue') ? 'blue' : 
-                             (el.classList.contains('place-red') ? 'red' : 'gray'));
-                const currentDateYMD = document.getElementById("mapDatePicker").value;
-                
+                const color = el.classList.contains('place-green') ? 'green' : (el.classList.contains('place-blue') ? 'blue' : 'red');
                 if (color === "green") {
-                    const myPlace = getEmployeePlace(currentUser);
-                    const isMyPlace = (myPlace === placeName);
-                    
-                    if (isMyPlace) {
-                        if (confirm(`Забронировать ваше место ${placeName} на ${formatDateToDMY(currentDateYMD)}?`)) {
-                            await setBooking(currentDateYMD, currentUser, placeName);
-                            alert(`✅ Ваше место ${placeName} забронировано!`);
-                            renderAll();
-                        }
-                    } else if (myPlace) {
-                        alert(`У вас уже есть закреплённое место: ${myPlace}. Вы можете бронировать только его.`);
-                    } else {
-                        if (confirm(`Забронировать место ${placeName} на ${formatDateToDMY(currentDateYMD)}?`)) {
-                            await setBooking(currentDateYMD, currentUser, placeName);
-                            alert(`✅ Забронировано: ${placeName}`);
-                            renderAll();
-                        }
-                    }
-                }
-                else if (color === "blue") {
-                    if (confirm(`Освободить место ${placeName} на ${formatDateToDMY(currentDateYMD)}?`)) {
-                        await setHome(currentUser, currentDateYMD);
-                        alert(`✅ Место ${placeName} освобождено`);
+                    const myPlace = employees.find(e => e.name === currentUser)?.place;
+                    if (myPlace) { alert(`У вас есть место ${myPlace}, вы не можете бронировать другое`); return; }
+                    if (confirm(`Забронировать ${placeName} на ${formatDMY(dateObj)}?`)) {
+                        await setBooking(dateYMD, currentUser, placeName);
+                        alert("✅ Забронировано");
                         renderAll();
                     }
-                }
-                else if (color === "red") {
-                    const booking = bookings.find(b => b.date === currentDateYMD && b.place === placeName);
-                    if (booking) {
-                        alert(`❌ Занято: ${booking.employee}`);
-                    } else {
-                        alert(`❌ Занято владельцем`);
-                    }
-                }
-                else if (color === "gray") {
-                    alert(`⚠️ Владелец ещё не отметил статус`);
+                } else if (color === "blue" && confirm(`Освободить ${placeName}?`)) {
+                    await removeBooking(dateYMD, currentUser);
+                    alert("✅ Место освобождено");
+                    renderAll();
                 }
             };
         });
+    }
+
+    async function initAdminPanel() {
+        if (currentUser !== "Админ") return;
+        // админ-панель для отпусков
+        const panel = document.createElement("div");
+        panel.className = "admin-panel";
+        panel.innerHTML = `<h4>🔧 Админ-панель (отпуска)</h4>
+            <div class="flex-row"><input type="text" id="leaveEmployee" placeholder="Сотрудник"><input type="date" id="leaveStart"><input type="date" id="leaveEnd"><button id="addLeaveBtn">➕ Добавить отпуск</button></div>
+            <div id="leavesList"></div>`;
+        document.getElementById("profileTab").prepend(panel);
+        document.getElementById("addLeaveBtn").onclick = async () => {
+            const employee = document.getElementById("leaveEmployee").value;
+            const start = document.getElementById("leaveStart").value;
+            const end = document.getElementById("leaveEnd").value;
+            if (!employee || !start || !end) { alert("Заполните все поля"); return; }
+            await supabase.from("leaves").insert([{ employee, start_date: start, end_date: end, type: "vacation" }]);
+            await loadData();
+            alert("✅ Отпуск добавлен");
+            renderAll();
+        };
+        await loadData();
     }
 
     function renderAll() { if (currentUser) { renderProfile(); renderCalendar(); renderMap(); } }
 
     async function initLogin() {
         await loadData();
-        if (!employees.length) {
-            document.getElementById("loginLoader").innerText = "❌ Нет данных. Проверьте Supabase.";
-            return;
-        }
+        if (!employees.length) { document.getElementById("loginLoader").innerText = "❌ Нет данных."; return; }
         document.getElementById("loginLoader").style.display = "none";
         const select = document.getElementById("employeeSelect");
         select.style.display = "block";
@@ -406,16 +364,15 @@
         document.getElementById("loginBtn").style.display = "block";
         document.getElementById("loginBtn").onclick = () => {
             const name = select.value;
-            if (name && employees.some(e => e.name === name)) {
+            if (name) {
                 currentUser = name;
                 localStorage.setItem("currentUser", currentUser);
+                currentWeekStart = getWeekStart(new Date());
+                applyScheduleForWeek(currentWeekStart);
                 document.getElementById("loginScreen").style.display = "none";
                 document.getElementById("mainApp").style.display = "block";
+                if (name === "Админ") initAdminPanel();
                 renderAll();
-            } else {
-                document.getElementById("loginError").innerText = "Выберите сотрудника";
-                document.getElementById("loginError").style.display = "block";
-                setTimeout(() => document.getElementById("loginError").style.display = "none", 2000);
             }
         };
     }
@@ -424,14 +381,15 @@
         const saved = localStorage.getItem("currentUser");
         if (saved) {
             currentUser = saved;
+            currentWeekStart = getWeekStart(new Date());
             loadData().then(() => {
+                applyScheduleForWeek(currentWeekStart);
                 document.getElementById("loginScreen").style.display = "none";
                 document.getElementById("mainApp").style.display = "block";
+                if (saved === "Админ") initAdminPanel();
                 renderAll();
             });
-        } else {
-            initLogin();
-        }
+        } else initLogin();
         
         document.getElementById("logoutBtn")?.addEventListener("click", () => { localStorage.removeItem("currentUser"); location.reload(); });
         document.querySelectorAll(".tab-btn").forEach(btn => btn.onclick = () => {
@@ -441,61 +399,44 @@
             document.getElementById(`${btn.dataset.tab}Tab`).classList.add("active");
             if (btn.dataset.tab === "map") renderMap();
         });
-        document.getElementById("prevMonthBtn")?.addEventListener("click", () => { currentMonth.setMonth(currentMonth.getMonth() - 1); renderCalendar(); });
-        document.getElementById("nextMonthBtn")?.addEventListener("click", () => { currentMonth.setMonth(currentMonth.getMonth() + 1); renderCalendar(); });
+        document.getElementById("prevWeekBtn")?.addEventListener("click", () => {
+            currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+            applyScheduleForWeek(currentWeekStart);
+            renderCalendar();
+        });
+        document.getElementById("nextWeekBtn")?.addEventListener("click", () => {
+            currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+            applyScheduleForWeek(currentWeekStart);
+            renderCalendar();
+        });
         document.getElementById("mapDatePicker")?.addEventListener("change", () => renderMap());
         
         document.querySelectorAll(".status-btn").forEach(btn => {
             btn.onclick = async () => {
-                if (!selectedDate) return alert("Выберите день в календаре");
-                
+                if (!selectedDate) { alert("Выберите день в расписании"); return; }
                 const status = btn.dataset.status;
-                const dateDMY = formatDateToDMY(selectedDate);
-                
+                const dateObj = new Date(selectedDate);
+                const isFuture = dateObj >= currentWeekStart;
+                if (!isFuture) { alert("Нельзя изменить прошедшие дни"); return; }
+                const myPlace = employees.find(e => e.name === currentUser)?.place;
                 if (status === "office") {
-                    const myPlace = getEmployeePlace(currentUser);
-                    if (myPlace) {
-                        await setBooking(selectedDate, currentUser, myPlace);
-                        alert(`✅ Забронировано ваше место: ${myPlace} на ${dateDMY}`);
-                    } else {
-                        const freePlaces = places.filter(p => getPlaceColor(p.name, selectedDate) === "green");
-                        if (freePlaces.length === 0) alert("❌ Нет свободных мест");
-                        else {
-                            const list = freePlaces.map(p => p.name).join(", ");
-                            const chosen = prompt(`Свободные места: ${list}\nВведите название:`);
-                            if (chosen && freePlaces.some(p => p.name === chosen)) {
-                                await setBooking(selectedDate, currentUser, chosen);
-                                alert(`✅ Забронировано: ${chosen} на ${dateDMY}`);
-                            }
-                        }
-                    }
-                } 
-                else if (status === "home") {
-                    await setHome(currentUser, selectedDate);
-                    alert(`✅ Отмечено как 'Из дома / на Воздвиженке' на ${dateDMY}`);
-                } 
-                else if (status === "vacation") {
-                    const endDMY = prompt("Дата окончания отпуска (ДД.ММ.ГГГГ):");
-                    if (endDMY) {
-                        const endYMD = formatDateToYMD(endDMY);
-                        if (endYMD) {
-                            await setVacation(currentUser, selectedDate, endYMD, "vacation");
-                            alert(`🌴 Хорошего отдыха, ${currentUser}! ❤️`);
-                        } else alert("Неверный формат даты");
-                    }
-                } 
-                else if (status === "sick") {
-                    const endDMY = prompt("Дата окончания больничного (ДД.ММ.ГГГГ):");
-                    if (endDMY) {
-                        const endYMD = formatDateToYMD(endDMY);
-                        if (endYMD) {
-                            await setVacation(currentUser, selectedDate, endYMD, "sick");
-                            alert(`🤒 Выздоравливай скорее, ${currentUser}! ❤️`);
-                        } else alert("Неверный формат даты");
-                    }
+                    if (!myPlace) { alert("У вас нет закреплённого места"); return; }
+                    await setBooking(selectedDate, currentUser, myPlace);
+                    alert("✅ Место забронировано");
+                } else if (status === "home") {
+                    await removeBooking(selectedDate, currentUser);
+                    alert("✅ Место освобождено");
                 }
                 renderAll();
             };
+        });
+        document.getElementById("clearStatusBtn")?.addEventListener("click", async () => {
+            if (!selectedDate) { alert("Выберите день"); return; }
+            const dateObj = new Date(selectedDate);
+            if (dateObj < currentWeekStart) { alert("Нельзя изменить прошедшие дни"); return; }
+            await removeBooking(selectedDate, currentUser);
+            alert("✅ Место освобождено");
+            renderAll();
         });
     });
 </script>
