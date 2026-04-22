@@ -82,7 +82,7 @@
                 <hr><h4>Статус на этот день</h4>
                 <div class="status-buttons">
                     <div class="status-btn" data-status="office">🏢 В офисе</div>
-                    <div class="status-btn" data-status="home">🏠 Из дома</div>
+                    <div class="status-btn" data-status="home">🏠 Из дома / на Воздвиженке</div>
                     <div class="status-btn" data-status="vacation">🌴 Отпуск</div>
                     <div class="status-btn" data-status="sick">🤒 Больничный</div>
                 </div>
@@ -376,7 +376,7 @@
                 } 
                 else if (status === "home") {
                     await setHome(currentUser, selectedDate);
-                    alert("✅ Отмечено как 'Из дома'");
+                    alert("✅ Отмечено как 'Из дома / на Воздвиженке'");
                 } 
                 else if (status === "vacation") {
                     const end = prompt("Дата окончания (ГГГГ-ММ-ДД):");
