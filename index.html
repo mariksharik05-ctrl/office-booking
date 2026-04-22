@@ -196,48 +196,49 @@
     }
 
     function renderMap() {
-        const date = document.getElementById("mapDatePicker").value || new Date().toISOString().slice(0,10);
-        
-        // Группируем места по pos_y (ряды)
-        const rows = new Map();
-        for (const place of places) {
-            const y = place.pos_y;
-            if (!rows.has(y)) rows.set(y, []);
-            rows.get(y).push(place);
-        }
-        
-        // Сортируем ряды по убыванию y (чтобы больший y был сверху)
-        const sortedYs = Array.from(rows.keys()).sort((a, b) => b - a);
-        
-        // Разбиваем на группы по 2 ряда
-        const groups = [];
-        for (let i = 0; i < sortedYs.length; i += 2) {
-            groups.push(sortedYs.slice(i, i + 2));
-        }
-        
-        let html = "";
-        for (const group of groups) {
-            html += `<div class="map-row-group" style="margin-bottom: 32px;">`;
-            for (const y of group) {
-                let placesInRow = rows.get(y);
-                // Сортируем по x (слева направо)
-                placesInRow.sort((a, b) => a.pos_x - b.pos_x);
-                // Разворачиваем для обратного порядка (чтобы x=0 был справа)
-                placesInRow.reverse();
-                
-                // Выравнивание по центру
-                html += `<div style="display: flex; gap: 16px; justify-content: center; margin-bottom: 16px;">`;
-                for (const place of placesInRow) {
-                    const color = getPlaceColor(place.name, date);
-                    html += `<div class="map-place place-${color}" data-place="${place.name}">${place.name}</div>`;
-                }
-                html += `</div>`;
-            }
-            html += `</div>`;
-        }
-        
-        document.getElementById("officeMap").innerHTML = html || "<div class='loader'>Нет мест</div>";
+    const date = document.getElementById("mapDatePicker").value || new Date().toISOString().slice(0,10);
+    
+    // Группируем места по pos_y (ряды)
+    const rows = new Map();
+    for (const place of places) {
+        const y = place.pos_y;
+        if (!rows.has(y)) rows.set(y, []);
+        rows.get(y).push(place);
     }
+    
+    // Сортируем ряды по убыванию y (чтобы больший y был сверху)
+    const sortedYs = Array.from(rows.keys()).sort((a, b) => b - a);
+    
+    // Разбиваем на группы по 2 ряда
+    const groups = [];
+    for (let i = 0; i < sortedYs.length; i += 2) {
+        groups.push(sortedYs.slice(i, i + 2));
+    }
+    
+    let html = "";
+    for (const group of groups) {
+        html += `<div class="map-row-group" style="margin-bottom: 32px; display: flex; flex-direction: column; align-items: center;">`;
+        for (const y of group) {
+            let placesInRow = rows.get(y);
+            // Сортируем по x (слева направо)
+            placesInRow.sort((a, b) => a.pos_x - b.pos_x);
+            // Разворачиваем для обратного порядка (чтобы x=0 был справа)
+            placesInRow.reverse();
+            
+            // Контейнер для ряда с выравниванием вправо
+            html += `<div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">`;
+            html += `<div style="display: flex; gap: 16px;">`;
+            for (const place of placesInRow) {
+                const color = getPlaceColor(place.name, date);
+                html += `<div class="map-place place-${color}" data-place="${place.name}">${place.name}</div>`;
+            }
+            html += `</div></div>`;
+        }
+        html += `</div>`;
+    }
+    
+    document.getElementById("officeMap").innerHTML = html || "<div class='loader'>Нет мест</div>";
+}
 
     function renderAll() { if (currentUser) { renderProfile(); renderCalendar(); renderMap(); } }
 
