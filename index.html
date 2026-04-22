@@ -175,9 +175,17 @@
         const isCurrentWeek = dateObj >= weekStart && dateObj < new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
         const isTodayOrFuture = dateObj >= today;
         
+        // НА ТЕКУЩЕЙ НЕДЕЛЕ МОЖНО ТОЛЬКО ОСВОБОДИТЬ МЕСТО (ОФИС → ДОМ)
         if (isCurrentWeek && isTodayOrFuture && newStatus === "office") {
-            alert("⚠️ На текущей неделе можно только освободить место (отметить 'Из дома')");
+            alert("⚠️ На текущей неделе можно только освободить место (отметить 'Из дома'), нельзя добавить 'В офисе'");
             return false;
+        }
+        
+        if (newStatus === "home") {
+            const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
+            if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
+            await loadData();
+            return true;
         }
         
         if (newStatus === "office") {
@@ -188,12 +196,11 @@
             const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
             if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
             await supabase.from("bookings").insert([{ date: dateYMD, employee: currentUser, place: myPlace }]);
-        } else {
-            const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
-            if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
+            await loadData();
+            return true;
         }
-        await loadData();
-        return true;
+        
+        return false;
     }
 
     function renderProfile() {
