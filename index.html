@@ -23,6 +23,7 @@
         .cal-day { background: #f2f2f7; border-radius: 12px; padding: 12px 4px; text-align: center; font-size: 14px; cursor: pointer; }
         .cal-day.selected { background: #007aff; color: white; }
         .cal-day.my-status { background: #007aff; color: white; }
+        .cal-day.past-day { background: #c0c0c0; color: #666; cursor: not-allowed; opacity: 0.6; }
         .status-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0; }
         .status-btn { flex: 1; padding: 12px; background: #f2f2f7; border-radius: 30px; text-align: center; cursor: pointer; font-weight: 500; }
         .map-place { width: 90px; height: 90px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-weight: 600; text-align: center; cursor: pointer; }
@@ -84,7 +85,7 @@
                 <hr><h4>Статус на этот день</h4>
                 <div class="status-buttons">
                     <div class="status-btn" data-status="office">🏢 В офисе</div>
-                    <div class="status-btn" data-status="home">🏠 Из дома / на Воздвиженке</div>
+                    <div class="status-btn" data-status="home">🏠 Из дома</div>
                     <div class="status-btn" data-status="vacation">🌴 Отпуск</div>
                     <div class="status-btn" data-status="sick">🤒 Больничный</div>
                 </div>
@@ -163,15 +164,12 @@
     function getPlaceColor(placeName, dateYMD) {
         const owner = employees.find(e => e.place === placeName);
         
-        // Проверяем, забронировал ли текущий пользователь это место
         const bookedByMe = bookings.some(b => b.date === dateYMD && b.place === placeName && b.employee === currentUser);
         
-        // Если место забронировано текущим пользователем — синий
         if (bookedByMe) {
             return "blue";
         }
         
-        // Если у места нет владельца
         if (!owner) {
             const isBooked = bookings.some(b => b.date === dateYMD && b.place === placeName);
             return isBooked ? "red" : "green";
@@ -179,17 +177,13 @@
         
         const status = getEmployeeStatus(owner.name, dateYMD);
         
-        // Место принадлежит текущему пользователю
         if (owner.name === currentUser) {
-            // Если владелец отметил "в офисе" — место синее
             if (status === "office") {
                 return "blue";
             }
-            // Своё место всегда зелёное для владельца (может забронировать)
             return "green";
         }
         
-        // Место другого пользователя
         if (status === "office") {
             return "red";
         }
@@ -227,7 +221,7 @@
         const status = getEmployeeStatus(currentUser, todayYMD);
         let statusText = "";
         if (status === "office") statusText = "В офисе";
-        else if (status === "home") statusText = "Из дома / на Воздвиженке";
+        else if (status === "home") statusText = "Из дома";
         else if (status === "vacation") statusText = "В отпуске";
         else if (status === "sick") statusText = "На больничном";
         else statusText = "Не отмечено";
@@ -240,22 +234,42 @@
         const firstDay = new Date(year, month, 1);
         const start = (firstDay.getDay() + 6) % 7;
         const days = new Date(year, month + 1, 0).getDate();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
         let html = "";
         for (let i = 0; i < start; i++) html += "<div></div>";
         for (let d = 1; d <= days; d++) {
             const dateYMD = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const cellDate = new Date(year, month, d);
+            const isPast = cellDate < today;
             const status = getEmployeeStatus(currentUser, dateYMD);
-            html += `<div class="cal-day ${status ? 'my-status' : ''}" data-date="${dateYMD}">${d}</div>`;
+            
+            let additionalClass = "";
+            if (isPast) {
+                additionalClass = "past-day";
+            } else if (status) {
+                additionalClass = "my-status";
+            }
+            
+            html += `<div class="cal-day ${additionalClass}" data-date="${dateYMD}" data-past="${isPast}">${d}</div>`;
         }
         document.getElementById("calendarGrid").innerHTML = html;
         document.getElementById("monthYear").innerHTML = `${firstDay.toLocaleString('ru', {month:'long'})} ${year}`;
+        
         document.querySelectorAll(".cal-day").forEach(el => {
-            el.onclick = () => {
-                selectedDate = el.dataset.date;
-                document.getElementById("statusPanel").style.display = "block";
-                document.querySelectorAll(".cal-day").forEach(d => d.style.background = "");
-                el.style.background = "#cce5ff";
-            };
+            const isPast = el.dataset.past === "true";
+            if (!isPast) {
+                el.onclick = () => {
+                    selectedDate = el.dataset.date;
+                    document.getElementById("statusPanel").style.display = "block";
+                    document.querySelectorAll(".cal-day").forEach(d => d.style.background = "");
+                    el.style.background = "#cce5ff";
+                };
+            } else {
+                el.onclick = null;
+                el.style.cursor = "not-allowed";
+            }
         });
     }
 
@@ -285,7 +299,6 @@
             for (const y of group) {
                 let placesInRow = rows.get(y);
                 placesInRow.sort((a, b) => a.pos_x - b.pos_x);
-                // placesInRow.reverse();
                 
                 html += `<div class="map-row">`;
                 html += `<div class="map-row-inner">`;
@@ -432,7 +445,7 @@
                 } 
                 else if (status === "home") {
                     await setHome(currentUser, selectedDate);
-                    alert(`✅ Отмечено как 'Из дома / на Воздвиженке' на ${dateDMY}`);
+                    alert(`✅ Отмечено как 'Из дома' на ${dateDMY}`);
                 } 
                 else if (status === "vacation") {
                     const endDMY = prompt("Дата окончания отпуска (ДД.ММ.ГГГГ):");
