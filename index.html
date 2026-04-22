@@ -73,7 +73,9 @@
             </div>
             <div id="scheduleList" class="schedule-grid"></div>
             <div class="info-card" style="margin-top: 20px; font-size: 14px;">
-                💡 Кликните по дню, чтобы изменить статус (офис ↔ дом)
+                💡 <strong>Правила:</strong><br>
+                • До воскресенья 23:59 — можно менять расписание на следующую неделю<br>
+                • С понедельника — изменения невозможны (только освободить место через карту, если заболели)
             </div>
         </div>
         <div id="mapTab" class="tab-content">
@@ -209,31 +211,6 @@
         return true;
     }
 
-    function getPlaceColor(placeName, dateYMD) {
-        const booking = bookings.find(b => b.date === dateYMD && b.place === placeName);
-        const employee = employees.find(e => e.place === placeName);
-        
-        if (booking) {
-            if (booking.employee === currentUser) return "blue";
-            return "red";
-        }
-        
-        if (employee) {
-            if (employee.name === currentUser) {
-                const isLeave = isOnLeave(currentUser, dateYMD);
-                if (isLeave) return "green";
-                return "blue";
-            }
-            const defaultStatus = getDefaultStatus(employee.name, new Date(dateYMD));
-            const isLeave = isOnLeave(employee.name, dateYMD);
-            if (isLeave) return "green";
-            if (defaultStatus === 1) return "red";
-            return "green";
-        }
-        
-        return "green";
-    }
-
     function renderProfile() {
         const emp = employees.find(e => e.name === currentUser);
         document.getElementById("profileInfo").innerHTML = `<h2>👋 ${currentUser}</h2><div class="info-card"><strong>Место:</strong> ${emp?.place || "Нет"}<br><strong>Расписание по умолчанию:</strong> ${getScheduleText(emp?.name)}</div>`;
@@ -313,9 +290,22 @@
             placesInRow.sort((a, b) => a.pos_x - b.pos_x);
             html += `<div class="map-row">`;
             for (const place of placesInRow) {
-                const color = getPlaceColor(place.name, dateYMD);
                 const booking = bookings.find(b => b.date === dateYMD && b.place === place.name);
-                const occupant = booking ? booking.employee : "";
+                const employee = employees.find(e => e.place === place.name);
+                let color = "green", occupant = "";
+                if (booking) {
+                    color = booking.employee === currentUser ? "blue" : "red";
+                    occupant = booking.employee;
+                } else if (employee) {
+                    const isLeave = isOnLeave(employee.name, dateYMD);
+                    if (isLeave) {
+                        color = "green";
+                    } else {
+                        const defaultStatus = getDefaultStatus(employee.name, dateObj);
+                        if (defaultStatus === 1) { color = "red"; occupant = employee.name; }
+                        else color = "green";
+                    }
+                }
                 html += `<div class="map-place place-${color}" data-place="${place.name}"><strong>${place.name}</strong><br><span>${occupant || "свободно"}</span></div>`;
             }
             html += `</div>`;
@@ -337,11 +327,7 @@
         
         document.querySelectorAll(".map-place").forEach(el => {
             const placeName = el.dataset.place;
-            const color = el.classList.contains('place-green') ? 'green' : 
-                         (el.classList.contains('place-blue') ? 'blue' : 
-                         (el.classList.contains('place-red') ? 'red' : 'gray'));
-            
-            if (color === 'green') {
+            if (el.classList.contains('place-green')) {
                 el.onclick = async () => {
                     const myPlace = employees.find(e => e.name === currentUser)?.place;
                     if (myPlace) { alert(`У вас есть своё место: ${myPlace}`); return; }
@@ -352,10 +338,9 @@
                         await loadData();
                         await renderMap();
                         await renderSchedule();
-                        alert(`✅ Забронировано: ${placeName}`);
                     }
                 };
-            } else if (color === 'blue') {
+            } else if (el.classList.contains('place-blue')) {
                 el.onclick = async () => {
                     if (confirm(`Освободить ваше место ${placeName} на ${formatDMY(dateObj)}?`)) {
                         const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
