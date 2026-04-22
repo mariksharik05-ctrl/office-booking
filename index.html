@@ -280,8 +280,51 @@
         html += `</div>`;
         
         document.getElementById("officeMap").innerHTML = html || "<div class='loader'>Нет мест</div>";
+        
+        // Добавляем обработчики кликов на места
+        document.querySelectorAll(".map-place").forEach(el => {
+            el.onclick = async () => {
+                const placeName = el.dataset.place;
+                const color = el.classList.contains('place-green') ? 'green' : 
+                             (el.classList.contains('place-blue') ? 'blue' : 
+                             (el.classList.contains('place-red') ? 'red' : 'gray'));
+                const selectedDateForMap = document.getElementById("mapDatePicker").value || new Date().toISOString().slice(0,10);
+                
+                if (color === "green") {
+                    const myPlace = getEmployeePlace(currentUser);
+                    if (myPlace) {
+                        alert(`У вас уже есть закреплённое место: ${myPlace}. Вы не можете забронировать другое.`);
+                        return;
+                    }
+                    const confirmBooking = confirm(`Забронировать место ${placeName} на ${selectedDateForMap}?`);
+                    if (confirmBooking) {
+                        await setBooking(selectedDateForMap, currentUser, placeName);
+                        alert(`✅ Забронировано место: ${placeName}`);
+                        renderAll();
+                    }
+                }
+                else if (color === "blue") {
+                    const confirmFree = confirm(`Вы хотите освободить место ${placeName} на ${selectedDateForMap}?`);
+                    if (confirmFree) {
+                        await setHome(currentUser, selectedDateForMap);
+                        alert(`✅ Место ${placeName} освобождено`);
+                        renderAll();
+                    }
+                }
+                else if (color === "red") {
+                    const booking = bookings.find(b => b.date === selectedDateForMap && b.place === placeName);
+                    if (booking) {
+                        alert(`❌ Место ${placeName} уже занято сотрудником ${booking.employee}`);
+                    } else {
+                        alert(`❌ Место ${placeName} занято владельцем`);
+                    }
+                }
+                else if (color === "gray") {
+                    alert(`⚠️ Владелец места ${placeName} ещё не отметил свой статус на этот день.`);
+                }
+            };
+        });
     }
-
     function renderAll() { if (currentUser) { renderProfile(); renderCalendar(); renderMap(); } }
 
     async function initLogin() {
