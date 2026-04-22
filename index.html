@@ -33,11 +33,27 @@
         .loader { text-align: center; padding: 40px; color: #666; }
         @media (max-width: 500px) { .map-place { width: 70px; height: 70px; font-size: 12px; } }
         
-        .map-wrapper { display: flex; justify-content: center; width: 100%; }
-        .map-container { display: inline-block; }
-        .map-row-group { margin-bottom: 32px; }
-        .map-row { display: flex; justify-content: flex-end; margin-bottom: 16px; }
-        .map-row-inner { display: flex; gap: 16px; }
+        /* Стили для карты */
+        .map-wrapper {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+        .map-container {
+            display: inline-block;
+        }
+        .map-row-group {
+            margin-bottom: 32px;
+        }
+        .map-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 16px;
+        }
+        .map-row-inner {
+            display: flex;
+            gap: 16px;
+        }
         
         #prevMonthBtn, #nextMonthBtn {
             background: transparent;
@@ -52,7 +68,9 @@
             width: auto;
             min-width: 36px;
         }
-        #prevMonthBtn:hover, #nextMonthBtn:hover { background: #e5e5ea; }
+        #prevMonthBtn:hover, #nextMonthBtn:hover {
+            background: #e5e5ea;
+        }
     </style>
 </head>
 <body>
@@ -82,7 +100,7 @@
                 <hr><h4>Статус на этот день</h4>
                 <div class="status-buttons">
                     <div class="status-btn" data-status="office">🏢 В офисе</div>
-                    <div class="status-btn" data-status="home">🏠 Из дома / на Воздвиженке</div>
+                    <div class="status-btn" data-status="home">🏠 Из дома</div>
                     <div class="status-btn" data-status="vacation">🌴 Отпуск</div>
                     <div class="status-btn" data-status="sick">🤒 Больничный</div>
                 </div>
@@ -136,22 +154,27 @@
     function getPlaceColor(placeName, date) {
         const owner = employees.find(e => e.place === placeName);
         
+        // Если у места нет владельца
         if (!owner) {
             const isBooked = bookings.some(b => b.date === date && b.place === placeName);
             if (!isBooked) return "green";
+            // Проверяем, не текущий ли пользователь забронировал это место
             const bookedByMe = bookings.some(b => b.date === date && b.place === placeName && b.employee === currentUser);
             return bookedByMe ? "blue" : "red";
         }
         
         const status = getEmployeeStatus(owner.name, date);
         
+        // Место принадлежит текущему пользователю
         if (owner.name === currentUser) {
-            if (status === "office") return "blue";
+            if (status === "office") return "blue";  // Синий для своего забронированного
             if (status === "home" || status === "vacation" || status === "sick") return "green";
             return "gray";
         }
         
+        // Место другого пользователя
         if (status === "office") {
+            // Проверяем, не текущий ли пользователь забронировал это место
             const bookedByMe = bookings.some(b => b.date === date && b.place === placeName && b.employee === currentUser);
             return bookedByMe ? "blue" : "red";
         }
@@ -216,6 +239,7 @@
     function renderMap() {
         const date = document.getElementById("mapDatePicker").value || new Date().toISOString().slice(0,10);
         
+        // Группируем места по pos_y (ряды)
         const rows = new Map();
         for (const place of places) {
             const y = place.pos_y;
@@ -223,7 +247,10 @@
             rows.get(y).push(place);
         }
         
+        // Сортируем ряды по убыванию y (чтобы больший y был сверху)
         const sortedYs = Array.from(rows.keys()).sort((a, b) => b - a);
+        
+        // Разбиваем на группы по 2 ряда
         const groups = [];
         for (let i = 0; i < sortedYs.length; i += 2) {
             groups.push(sortedYs.slice(i, i + 2));
@@ -234,14 +261,16 @@
             html += `<div class="map-row-group">`;
             for (const y of group) {
                 let placesInRow = rows.get(y);
+                // Сортируем по x (слева направо)
                 placesInRow.sort((a, b) => a.pos_x - b.pos_x);
+                // Разворачиваем для обратного порядка (чтобы x=0 был справа)
                 placesInRow.reverse();
                 
                 html += `<div class="map-row">`;
                 html += `<div class="map-row-inner">`;
                 for (const place of placesInRow) {
                     const color = getPlaceColor(place.name, date);
-                    html += `<div class="map-place place-${color}" data-place="${place.name}" data-color="${color}">${place.name}</div>`;
+                    html += `<div class="map-place place-${color}" data-place="${place.name}">${place.name}</div>`;
                 }
                 html += `</div></div>`;
             }
@@ -250,48 +279,6 @@
         html += `</div>`;
         
         document.getElementById("officeMap").innerHTML = html || "<div class='loader'>Нет мест</div>";
-        
-        // Обработчики кликов на места
-        document.querySelectorAll(".map-place").forEach(el => {
-            el.onclick = async () => {
-                const placeName = el.dataset.place;
-                const color = el.dataset.color;
-                const selectedDateForMap = document.getElementById("mapDatePicker").value || new Date().toISOString().slice(0,10);
-                
-                if (color === "green") {
-                    const myPlace = getEmployeePlace(currentUser);
-                    if (myPlace) {
-                        alert(`У вас уже есть закреплённое место: ${myPlace}. Вы не можете забронировать другое.`);
-                        return;
-                    }
-                    const confirmBooking = confirm(`Забронировать место ${placeName} на ${selectedDateForMap}?`);
-                    if (confirmBooking) {
-                        await setBooking(selectedDateForMap, currentUser, placeName);
-                        alert(`✅ Забронировано место: ${placeName}`);
-                        renderAll();
-                    }
-                }
-                else if (color === "blue") {
-                    const confirmFree = confirm(`Вы хотите освободить место ${placeName} на ${selectedDateForMap}?`);
-                    if (confirmFree) {
-                        await setHome(currentUser, selectedDateForMap);
-                        alert(`✅ Место ${placeName} освобождено`);
-                        renderAll();
-                    }
-                }
-                else if (color === "red") {
-                    const booking = bookings.find(b => b.date === selectedDateForMap && b.place === placeName);
-                    if (booking) {
-                        alert(`❌ Место ${placeName} уже занято сотрудником ${booking.employee}`);
-                    } else {
-                        alert(`❌ Место ${placeName} занято владельцем`);
-                    }
-                }
-                else if (color === "gray") {
-                    alert(`⚠️ Владелец места ${placeName} ещё не отметил свой статус на этот день.`);
-                }
-            };
-        });
     }
 
     function renderAll() { if (currentUser) { renderProfile(); renderCalendar(); renderMap(); } }
@@ -332,9 +319,7 @@
                 document.getElementById("mainApp").style.display = "block";
                 renderAll();
             });
-        } else {
-            initLogin();
-        }
+        } else initLogin();
         
         document.getElementById("logoutBtn")?.addEventListener("click", () => { localStorage.removeItem("currentUser"); location.reload(); });
         document.querySelectorAll(".tab-btn").forEach(btn => btn.onclick = () => {
@@ -352,6 +337,7 @@
             btn.onclick = async () => {
                 if (!selectedDate) return alert("Выберите день");
                 const status = btn.dataset.status;
+                console.log("Нажато:", status, selectedDate);
                 
                 if (status === "office") {
                     const myPlace = getEmployeePlace(currentUser);
@@ -363,33 +349,38 @@
                             const color = getPlaceColor(p.name, selectedDate);
                             return color === "green";
                         });
-                        if (freePlaces.length === 0) alert("❌ Нет свободных мест");
-                        else {
+                        
+                        if (freePlaces.length === 0) {
+                            alert("❌ Нет свободных мест на этот день");
+                        } else {
                             const list = freePlaces.map(p => `${p.name}`).join(", ");
-                            const chosen = prompt(`Свободные места: ${list}\n\nВведите название:`);
+                            const chosen = prompt(`Свободные места: ${list}\n\nВведите название места, которое хотите забронировать:`);
+                            
                             if (chosen && freePlaces.some(p => p.name === chosen)) {
                                 await setBooking(selectedDate, currentUser, chosen);
-                                alert(`✅ Забронировано: ${chosen}`);
+                                alert(`✅ Забронировано место: ${chosen}`);
+                            } else if (chosen) {
+                                alert("❌ Неверное название места");
                             }
                         }
                     }
                 } 
                 else if (status === "home") {
                     await setHome(currentUser, selectedDate);
-                    alert("✅ Отмечено как 'Из дома / на Воздвиженке'");
+                    alert("✅ Отмечено как 'Из дома'");
                 } 
                 else if (status === "vacation") {
                     const end = prompt("Дата окончания (ГГГГ-ММ-ДД):");
                     if (end) {
                         await setVacation(currentUser, selectedDate, end, "vacation");
-                        alert(`🌴 Хорошего отдыха, ${currentUser}! ❤️`);
+                        alert("✅ Отпуск сохранён");
                     }
                 } 
                 else if (status === "sick") {
                     const end = prompt("Дата окончания (ГГГГ-ММ-ДД):");
                     if (end) {
                         await setVacation(currentUser, selectedDate, end, "sick");
-                        alert(`🤒 Выздоравливай скорее, ${currentUser}! ❤️`);
+                        alert("✅ Больничный сохранён");
                     }
                 }
                 renderAll();
