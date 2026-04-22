@@ -25,12 +25,14 @@
         .schedule-grid { display: flex; flex-direction: column; gap: 12px; }
         .schedule-day { display: flex; align-items: center; justify-content: space-between; background: #f9f9f9; border-radius: 16px; padding: 12px 16px; cursor: pointer; transition: 0.2s; }
         .schedule-day.past { opacity: 0.5; background: #e0e0e0; cursor: not-allowed; }
+        .schedule-day.current-lock { background: #fff3e0; cursor: pointer; }
         .schedule-day.office { background: #007aff20; border-left: 4px solid #007aff; }
         .schedule-day.home { background: #34c75920; border-left: 4px solid #34c759; }
         .day-name { font-weight: 600; font-size: 16px; width: 100px; }
         .day-status { font-size: 14px; padding: 4px 12px; border-radius: 20px; }
         .status-office { background: #007aff; color: white; }
         .status-home { background: #34c759; color: white; }
+        .status-warning { background: #ff9f0a; color: white; }
         
         .map-place { background: #f2f2f7; border-radius: 12px; padding: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
         .place-red { background: #ff3b30; color: white; }
@@ -42,6 +44,8 @@
         .flex-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         input, select { padding: 8px; border-radius: 8px; border: 1px solid #ccc; }
         .loader { text-align: center; padding: 40px; color: #666; }
+        .map-row { margin-bottom: 16px; }
+        .map-grid { display: flex; flex-direction: column; }
     </style>
 </head>
 <body>
@@ -70,13 +74,16 @@
             </div>
             <div id="scheduleList" class="schedule-grid"></div>
             <div class="info-card" style="margin-top: 20px; font-size: 14px;">
-                💡 Кликните по дню, чтобы переключить статус (офис ↔ дом)
+                💡 <strong>Правила:</strong><br>
+                • Будущие недели — можно менять (офис ↔ дом)<br>
+                • Текущая неделя — можно только освободить место (дом)<br>
+                • Прошедшие дни — нельзя менять
             </div>
         </div>
         <div id="mapTab" class="tab-content">
             <h3>Карта мест</h3>
             <input type="date" id="mapDatePicker" style="margin-bottom: 16px;">
-            <div id="officeMap"></div>
+            <div id="officeMap" class="map-grid"></div>
             <div id="colleaguesList" class="colleagues-list"></div>
         </div>
     </div>
@@ -92,7 +99,6 @@
     let employees = [], places = [], schedules = [], bookings = [], leaves = [];
     let currentUser = null;
     let currentWeekStart = null;
-    let currentUserSchedule = {};
 
     function getWeekStart(date) {
         const d = new Date(date);
@@ -145,32 +151,42 @@
         return sched[dayName] || 0;
     }
 
-    async function loadUserSchedule() {
-        const weekDates = getWeekDates(currentWeekStart);
-        const userSchedule = {};
-        for (let i=0; i<7; i++) {
-            const date = weekDates[i];
-            const dateYMD = formatYMD(date);
-            const isPast = date < getWeekStart(new Date());
-            const booking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
-            if (booking) {
-                userSchedule[dateYMD] = { status: "office", isPast };
-            } else {
-                const isLeave = leaves.some(l => l.employee === currentUser && dateYMD >= l.start_date && dateYMD <= l.end_date);
-                if (isLeave) {
-                    userSchedule[dateYMD] = { status: "home", isPast };
-                } else {
-                    const defaultStatus = getDefaultStatus(currentUser, date);
-                    userSchedule[dateYMD] = { status: defaultStatus === 1 ? "office" : "home", isPast };
-                }
-            }
-        }
-        currentUserSchedule = userSchedule;
+    function isOnLeave(employeeName, dateYMD) {
+        return leaves.some(l => l.employee === employeeName && dateYMD >= l.start_date && dateYMD <= l.end_date);
     }
 
-    async function setUserStatus(dateYMD, status) {
+    async function getUserStatusForDate(employeeName, date, dateYMD) {
+        const isLeave = isOnLeave(employeeName, dateYMD);
+        if (isLeave) return "home";
+        const booking = bookings.find(b => b.date === dateYMD && b.employee === employeeName);
+        if (booking) return "office";
+        const defaultStatus = getDefaultStatus(employeeName, date);
+        return defaultStatus === 1 ? "office" : "home";
+    }
+
+    async function setUserStatus(dateYMD, newStatus) {
         const myPlace = employees.find(e => e.name === currentUser)?.place;
-        if (status === "office") {
+        const dateObj = new Date(dateYMD);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const weekStart = getWeekStart(today);
+        
+        // Прошедшие дни
+        if (dateObj < weekStart) {
+            alert("❌ Нельзя изменить прошедшие дни");
+            return false;
+        }
+        
+        // Текущая неделя (начиная с сегодня)
+        const isCurrentWeek = dateObj >= weekStart && dateObj < new Date(weekStart.getTime() + 7*24*60*60*1000);
+        const isTodayOrFuture = dateObj >= today;
+        
+        if (isCurrentWeek && isTodayOrFuture && newStatus === "office") {
+            alert("⚠️ На текущей неделе можно только освободить место (отметить 'Из дома'), но нельзя добавить 'В офисе'");
+            return false;
+        }
+        
+        if (newStatus === "office") {
             if (!myPlace) { alert("У вас нет закреплённого места"); return false; }
             const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
             if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
@@ -180,8 +196,6 @@
             if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
         }
         await loadData();
-        await loadUserSchedule();
-        renderSchedule();
         return true;
     }
 
@@ -199,21 +213,43 @@
         return officeDays.length ? officeDays.join(', ') : "все дни дома";
     }
 
-    function renderSchedule() {
+    async function renderSchedule() {
         const weekDates = getWeekDates(currentWeekStart);
         const days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const weekStart = getWeekStart(today);
+        
         let html = '';
         for (let i=0; i<7; i++) {
             const date = weekDates[i];
             const dateYMD = formatYMD(date);
-            const data = currentUserSchedule[dateYMD];
-            const status = data?.status || "home";
-            const isPast = data?.isPast || false;
+            const status = await getUserStatusForDate(currentUser, date, dateYMD);
+            const isPast = date < weekStart;
+            const isCurrentWeek = date >= weekStart && date < new Date(weekStart.getTime() + 7*24*60*60*1000);
+            const isTodayOrFuture = date >= today;
+            
+            let canEdit = false;
+            let editType = "";
+            if (!isPast) {
+                if (isCurrentWeek && isTodayOrFuture) {
+                    canEdit = true;
+                    editType = "only-home";
+                } else if (!isCurrentWeek) {
+                    canEdit = true;
+                    editType = "full";
+                }
+            }
+            
             const statusText = status === "office" ? "🏢 В офисе" : "🏠 Из дома";
             const statusClass = status === "office" ? "status-office" : "status-home";
+            let extraClass = "";
+            if (isPast) extraClass = "past";
+            else if (editType === "only-home") extraClass = "current-lock";
+            
             html += `
-                <div class="schedule-day ${status === "office" ? 'office' : 'home'} ${isPast ? 'past' : ''}" data-date="${dateYMD}" data-past="${isPast}">
-                    <span class="day-name">${days[i]}</span>
+                <div class="schedule-day ${status === "office" ? 'office' : 'home'} ${extraClass}" data-date="${dateYMD}" data-past="${isPast}" data-edit-type="${editType}" data-current-status="${status}">
+                    <span class="day-name">${days[i]} ${isPast ? '(прошёл)' : (editType === "only-home" ? '⚠️ только освободить' : '')}</span>
                     <span class="day-status ${statusClass}">${statusText}</span>
                 </div>
             `;
@@ -223,12 +259,26 @@
         
         document.querySelectorAll(".schedule-day").forEach(el => {
             if (el.dataset.past === "true") return;
+            const editType = el.dataset.editType;
+            const currentStatus = el.dataset.currentStatus;
+            
             el.onclick = async () => {
                 const dateYMD = el.dataset.date;
-                const currentStatus = currentUserSchedule[dateYMD]?.status;
-                const newStatus = currentStatus === "office" ? "home" : "office";
-                if (await setUserStatus(dateYMD, newStatus)) {
-                    renderSchedule();
+                if (editType === "only-home") {
+                    if (currentStatus === "office") {
+                        if (await setUserStatus(dateYMD, "home")) {
+                            await renderSchedule();
+                            await renderMap();
+                        }
+                    } else {
+                        alert("⚠️ На текущей неделе можно только освободить место (отметить 'Из дома')");
+                    }
+                } else if (editType === "full") {
+                    const newStatus = currentStatus === "office" ? "home" : "office";
+                    if (await setUserStatus(dateYMD, newStatus)) {
+                        await renderSchedule();
+                        await renderMap();
+                    }
                 }
             };
         });
@@ -241,45 +291,60 @@
             document.getElementById("mapDatePicker").value = dateYMD;
         }
         const dateObj = new Date(dateYMD);
-        const isPast = dateObj < getWeekStart(new Date());
         
-        const html = [];
+        // Группируем места по pos_y
+        const rows = new Map();
         for (const place of places) {
-            const booking = bookings.find(b => b.date === dateYMD && b.place === place.name);
-            const employee = employees.find(e => e.place === place.name);
-            let color = "green", occupant = "";
-            if (booking) {
-                color = booking.employee === currentUser ? "blue" : "red";
-                occupant = booking.employee;
-            } else if (employee && !isPast) {
-                const isLeave = leaves.some(l => l.employee === employee.name && dateYMD >= l.start_date && dateYMD <= l.end_date);
-                if (isLeave) {
-                    color = "green";
-                } else {
-                    const defaultStatus = getDefaultStatus(employee.name, dateObj);
-                    if (defaultStatus === 1) { color = "red"; occupant = employee.name; }
-                    else color = "green";
-                }
-            }
-            html.push(`<div class="map-place place-${color}"><strong>${place.name}</strong><span>${occupant || "свободно"}</span></div>`);
+            const y = place.pos_y;
+            if (!rows.has(y)) rows.set(y, []);
+            rows.get(y).push(place);
         }
-        document.getElementById("officeMap").innerHTML = html.join('');
+        const sortedYs = Array.from(rows.keys()).sort((a, b) => b - a);
         
+        let html = '';
+        for (const y of sortedYs) {
+            const placesInRow = rows.get(y);
+            placesInRow.sort((a, b) => a.pos_x - b.pos_x);
+            html += `<div class="map-row">`;
+            for (const place of placesInRow) {
+                const booking = bookings.find(b => b.date === dateYMD && b.place === place.name);
+                const employee = employees.find(e => e.place === place.name);
+                let color = "green", occupant = "";
+                if (booking) {
+                    color = booking.employee === currentUser ? "blue" : "red";
+                    occupant = booking.employee;
+                } else if (employee) {
+                    const isLeave = isOnLeave(employee.name, dateYMD);
+                    if (isLeave) {
+                        color = "green";
+                    } else {
+                        const defaultStatus = getDefaultStatus(employee.name, dateObj);
+                        if (defaultStatus === 1) { color = "red"; occupant = employee.name; }
+                        else color = "green";
+                    }
+                }
+                html += `<div class="map-place place-${color}"><strong>${place.name}</strong><span>${occupant || "свободно"}</span></div>`;
+            }
+            html += `</div>`;
+        }
+        document.getElementById("officeMap").innerHTML = html;
+        
+        // Список коллег
         const colleagues = [];
         for (const booking of bookings.filter(b => b.date === dateYMD)) {
             if (!colleagues.includes(booking.employee)) colleagues.push(booking.employee);
         }
         for (const emp of employees) {
             if (!emp.place) continue;
-            const isLeave = leaves.some(l => l.employee === emp.name && dateYMD >= l.start_date && dateYMD <= l.end_date);
+            const isLeave = isOnLeave(emp.name, dateYMD);
             if (isLeave) continue;
             const defaultStatus = getDefaultStatus(emp.name, dateObj);
             if (defaultStatus === 1 && !colleagues.includes(emp.name)) colleagues.push(emp.name);
         }
         document.getElementById("colleaguesList").innerHTML = `<h4>👥 Коллеги в офисе (${formatDMY(dateObj)})</h4><ul>${colleagues.map(c => `<li>${c}</li>`).join('')}</ul>`;
         
+        // Обработчики кликов на карте
         document.querySelectorAll(".map-place").forEach(el => {
-            if (isPast) return;
             if (el.classList.contains('place-green')) {
                 el.onclick = async () => {
                     const placeName = el.querySelector('strong').innerText;
@@ -290,8 +355,8 @@
                         if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
                         await supabase.from("bookings").insert([{ date: dateYMD, employee: currentUser, place: placeName }]);
                         await loadData();
-                        renderMap();
-                        renderSchedule();
+                        await renderMap();
+                        await renderSchedule();
                     }
                 };
             } else if (el.classList.contains('place-blue')) {
@@ -300,8 +365,8 @@
                         const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                         if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
                         await loadData();
-                        renderMap();
-                        renderSchedule();
+                        await renderMap();
+                        await renderSchedule();
                     }
                 };
             }
@@ -313,8 +378,7 @@
         const panel = document.createElement("div");
         panel.className = "admin-panel";
         panel.innerHTML = `<h4>🔧 Админ-панель (отпуска)</h4>
-            <div class="flex-row"><input type="text" id="leaveEmployee" placeholder="Сотрудник"><input type="date" id="leaveStart"><input type="date" id="leaveEnd"><button id="addLeaveBtn">➕ Добавить</button></div>
-            <div id="leavesList"></div>`;
+            <div class="flex-row"><input type="text" id="leaveEmployee" placeholder="Сотрудник"><input type="date" id="leaveStart"><input type="date" id="leaveEnd"><button id="addLeaveBtn">➕ Добавить</button></div>`;
         document.getElementById("profileTab").prepend(panel);
         document.getElementById("addLeaveBtn").onclick = async () => {
             const employee = document.getElementById("leaveEmployee").value;
@@ -324,17 +388,16 @@
             await supabase.from("leaves").insert([{ employee, start_date: start, end_date: end, type: "vacation" }]);
             await loadData();
             alert("✅ Отпуск добавлен");
-            renderSchedule();
-            renderMap();
+            await renderSchedule();
+            await renderMap();
         };
     }
 
     async function renderAll() {
         if (!currentUser) return;
-        await loadUserSchedule();
         renderProfile();
-        renderSchedule();
-        renderMap();
+        await renderSchedule();
+        await renderMap();
     }
 
     async function initLogin() {
