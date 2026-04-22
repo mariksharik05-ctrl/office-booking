@@ -315,7 +315,15 @@
             for (const place of placesInRow) {
                 const color = getPlaceColor(place.name, dateYMD);
                 const booking = bookings.find(b => b.date === dateYMD && b.place === place.name);
-                const occupant = booking ? booking.employee : "";
+                let occupant = "";
+                if (booking) {
+                    occupant = booking.employee;
+                } else {
+                    const employee = employees.find(e => e.place === place.name);
+                    if (employee && employee.name === currentUser) {
+                        occupant = currentUser;
+                    }
+                }
                 html += `<div class="map-place place-${color}" data-place="${place.name}"><strong>${place.name}</strong><br><span>${occupant || "свободно"}</span></div>`;
             }
             html += `</div>`;
