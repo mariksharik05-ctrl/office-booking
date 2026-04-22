@@ -108,12 +108,9 @@
     let employees = [], places = [], bookings = [], leaves = [];
     let currentUser = null, currentMonth = new Date(), selectedDate = null;
 
-    // ========== ФУНКЦИИ ДЛЯ РАБОТЫ С ДАТАМИ ==========
     function formatDateToYMD(dateStr) {
         if (!dateStr) return null;
-        // Если уже в формате ГГГГ-ММ-ДД, возвращаем как есть
         if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr;
-        // Преобразуем ДД.ММ.ГГГГ в ГГГГ-ММ-ДД
         const parts = dateStr.split('.');
         if (parts.length === 3) {
             return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
@@ -123,9 +120,7 @@
 
     function formatDateToDMY(dateStr) {
         if (!dateStr) return '';
-        // Если уже в формате ДД.ММ.ГГГГ
         if (dateStr.match(/^\d{2}\.\d{2}\.\d{4}$/)) return dateStr;
-        // Преобразуем ГГГГ-ММ-ДД в ДД.ММ.ГГГГ
         const parts = dateStr.split('-');
         if (parts.length === 3) {
             return `${parts[2]}.${parts[1]}.${parts[0]}`;
@@ -149,7 +144,7 @@
         places = placesRes.data || [];
         bookings = bookRes.data || [];
         leaves = leavesRes.data || [];
-        console.log("✅ Данные загружены. Сотрудников:", employees.length, "Мест:", places.length);
+        console.log("✅ Данные загружены");
         return true;
     }
 
@@ -177,19 +172,20 @@
         
         const status = getEmployeeStatus(owner.name, dateYMD);
         
+        // Место принадлежит текущему пользователю — всегда зелёное для него
         if (owner.name === currentUser) {
-            if (status === "office") return "blue";
-            if (status === "home" || status === "vacation" || status === "sick") return "green";
             return "green";
         }
         
+        // Место другого пользователя
         if (status === "office") {
-            const bookedByMe = bookings.some(b => b.date === dateYMD && b.place === placeName && b.employee === currentUser);
-            return bookedByMe ? "blue" : "red";
+            return "red";
         }
-        if (status === "home" || status === "vacation" || status === "sick") return "green";
+        if (status === "home" || status === "vacation" || status === "sick") {
+            return "green";
+        }
         
-        return "green";
+        return "gray";
     }
 
     async function setBooking(dateYMD, employee, place) {
@@ -304,14 +300,16 @@
                 
                 if (color === "green") {
                     const myPlace = getEmployeePlace(currentUser);
-                    if (myPlace === placeName) {
+                    const isMyPlace = (myPlace === placeName);
+                    
+                    if (isMyPlace) {
                         if (confirm(`Забронировать ваше место ${placeName} на ${formatDateToDMY(currentDateYMD)}?`)) {
                             await setBooking(currentDateYMD, currentUser, placeName);
                             alert(`✅ Ваше место ${placeName} забронировано!`);
                             renderAll();
                         }
                     } else if (myPlace) {
-                        alert(`У вас уже есть закреплённое место: ${myPlace}. Вы не можете забронировать другое.`);
+                        alert(`У вас уже есть закреплённое место: ${myPlace}. Вы можете бронировать только его.`);
                     } else {
                         if (confirm(`Забронировать место ${placeName} на ${formatDateToDMY(currentDateYMD)}?`)) {
                             await setBooking(currentDateYMD, currentUser, placeName);
