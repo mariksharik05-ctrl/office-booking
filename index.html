@@ -10,7 +10,7 @@
         .container { max-width: 1200px; margin: 0 auto; }
         .login-card { background: white; border-radius: 28px; padding: 32px 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-top: 40px; }
         .login-card h2 { margin: 0 0 24px; text-align: center; }
-        select, input, button { width: 100%; padding: 14px; margin: 8px 0; border-radius: 14px; border: 1px solid #c6c6c8; font-size: 16px; }
+        select, button { width: 100%; padding: 14px; margin: 8px 0; border-radius: 14px; border: 1px solid #c6c6c8; font-size: 16px; }
         button { background: #007aff; color: white; border: none; font-weight: 600; cursor: pointer; }
         .logout-btn { background: #ff3b30; margin-top: 20px; }
         .tabs { display: flex; gap: 8px; margin-bottom: 20px; background: white; padding: 8px; border-radius: 32px; }
@@ -22,31 +22,36 @@
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 16px; }
         .cal-day { background: #f2f2f7; border-radius: 12px; padding: 12px 4px; text-align: center; font-size: 14px; cursor: pointer; }
         .cal-day.selected { background: #007aff; color: white; }
+        .cal-day.booked { background: #ff3b30; color: white; }
         .status-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0; }
         .status-btn { flex: 1; padding: 12px; background: #f2f2f7; border-radius: 30px; text-align: center; cursor: pointer; font-weight: 500; }
         .map-grid { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
+        .map-row-group {
+            margin-bottom: 32px;
+        }
         .map-place { width: 90px; height: 90px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-weight: 600; text-align: center; cursor: pointer; }
         .place-red { background: #ff3b30; color: white; }
         .place-green { background: #34c759; color: white; }
         .place-gray { background: #8e8e93; color: white; }
         .loader { text-align: center; padding: 40px; color: #666; }
         @media (max-width: 500px) { .map-place { width: 70px; height: 70px; font-size: 12px; } }
-	#prevMonthBtn, #nextMonthBtn {
-    		background: transparent;
-    		border: none;
-    		padding: 6px 10px;
-    		font-size: 18px;
-    		cursor: pointer;
-    		font-weight: 400;
-    		color: #007aff;
-    		border-radius: 30px;
-    		transition: 0.2s;
-    		width: auto;
-    		min-width: 36px;
-	}
-    	#prevMonthBtn:hover, #nextMonthBtn:hover {
-        	background: #e5e5ea;
-   	}
+        
+        #prevMonthBtn, #nextMonthBtn {
+            background: transparent;
+            border: none;
+            padding: 6px 10px;
+            font-size: 18px;
+            cursor: pointer;
+            font-weight: 400;
+            color: #007aff;
+            border-radius: 30px;
+            transition: 0.2s;
+            width: auto;
+            min-width: 36px;
+        }
+        #prevMonthBtn:hover, #nextMonthBtn:hover {
+            background: #e5e5ea;
+        }
     </style>
 </head>
 <body>
@@ -56,7 +61,6 @@
             <h2>🏢 Бронирование офиса</h2>
             <div id="loginLoader" class="loader">Загрузка данных...</div>
             <select id="employeeSelect" style="display: none;"><option value="">Выберите себя</option></select>
-            <input type="password" id="passwordInput" placeholder="4-значный пароль" style="display: none;">
             <button id="loginBtn" style="display: none;">Войти</button>
             <div id="loginError" style="color: red; text-align: center; margin-top: 12px; display: none;"></div>
         </div>
@@ -77,7 +81,7 @@
                 <hr><h4>Статус на этот день</h4>
                 <div class="status-buttons">
                     <div class="status-btn" data-status="office">🏢 В офисе</div>
-                    <div class="status-btn" data-status="home">🏠 Из дома / на Воздвиженке</div>
+                    <div class="status-btn" data-status="home">🏠 Из дома</div>
                     <div class="status-btn" data-status="vacation">🌴 Отпуск</div>
                     <div class="status-btn" data-status="sick">🤒 Больничный</div>
                 </div>
@@ -194,31 +198,38 @@
     function renderMap() {
         const date = document.getElementById("mapDatePicker").value || new Date().toISOString().slice(0,10);
         
-        const maxX = Math.max(...places.map(p => p.pos_x), 0);
-        const maxY = Math.max(...places.map(p => p.pos_y), 0);
-        
-        // Создаём сетку
-        const grid = Array(maxY + 1).fill().map(() => Array(maxX + 1).fill(null));
+        // Группируем места по pos_y (ряды)
+        const rows = new Map();
         for (const place of places) {
-            const x = place.pos_x;
             const y = place.pos_y;
-            if (grid[y] && grid[y][x] !== undefined) {
-                grid[y][x] = place;
-            }
+            if (!rows.has(y)) rows.set(y, []);
+            rows.get(y).push(place);
+        }
+        
+        // Сортируем ряды по убыванию y (чтобы y=4 был сверху, y=0 снизу)
+        const sortedYs = Array.from(rows.keys()).sort((a, b) => b - a);
+        
+        // Разбиваем на группы по 2 ряда
+        const groups = [];
+        for (let i = 0; i < sortedYs.length; i += 2) {
+            groups.push(sortedYs.slice(i, i + 2));
         }
         
         let html = "";
-        // Идём от maxY до 0 (чтобы Y=0 был внизу)
-        for (let y = maxY; y >= 0; y--) {
-            html += `<div style="display:flex; gap:16px; justify-content:center; margin-bottom:16px;">`;
-            for (let x = 0; x <= maxX; x++) {
-                const place = grid[y][x];
-                if (place) {
+        for (const group of groups) {
+            html += `<div class="map-row-group" style="margin-bottom: 32px;">`;
+            for (const y of group) {
+                let placesInRow = rows.get(y);
+                // Сортируем по x (слева направо), потом разворачиваем для обратного порядка
+                placesInRow.sort((a, b) => a.pos_x - b.pos_x);
+                placesInRow.reverse(); // теперь x=0 будет справа
+                
+                html += `<div style="display: flex; gap: 16px; justify-content: flex-end; margin-bottom: 16px;">`;
+                for (const place of placesInRow) {
                     const color = getPlaceColor(place.name, date);
                     html += `<div class="map-place place-${color}" data-place="${place.name}">${place.name}</div>`;
-                } else {
-                    html += `<div style="width: 90px; height: 90px; visibility: hidden;"></div>`;
                 }
+                html += `</div>`;
             }
             html += `</div>`;
         }
@@ -238,18 +249,17 @@
         const select = document.getElementById("employeeSelect");
         select.style.display = "block";
         select.innerHTML = '<option value="">Выберите себя</option>' + employees.map(e => `<option value="${e.name}">${e.name}</option>`).join('');
-        document.getElementById("passwordInput").style.display = "block";
         document.getElementById("loginBtn").style.display = "block";
         document.getElementById("loginBtn").onclick = () => {
-            const emp = employees.find(e => e.name === select.value);
-            if (emp && emp.password === document.getElementById("passwordInput").value) {
-                currentUser = emp.name;
+            const name = select.value;
+            if (name && employees.some(e => e.name === name)) {
+                currentUser = name;
                 localStorage.setItem("currentUser", currentUser);
                 document.getElementById("loginScreen").style.display = "none";
                 document.getElementById("mainApp").style.display = "block";
                 renderAll();
             } else {
-                document.getElementById("loginError").innerText = "Неверный пароль";
+                document.getElementById("loginError").innerText = "Выберите сотрудника";
                 document.getElementById("loginError").style.display = "block";
                 setTimeout(() => document.getElementById("loginError").style.display = "none", 2000);
             }
