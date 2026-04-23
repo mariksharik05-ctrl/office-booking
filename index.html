@@ -167,17 +167,16 @@
         const myPlace = employees.find(e => e.name === currentUser)?.place;
         const dateObj = new Date(dateYMD);
         const now = new Date();
-        const currentWeekStart = getWeekStart(now);          // понедельник текущей недели
-        const nextWeekStart = new Date(currentWeekStart);
-        nextWeekStart.setDate(currentWeekStart.getDate() + 7); // понедельник следующей недели
-
-        // 1. Прошедшие дни
-        if (dateObj < currentWeekStart) {
+        const currentWeekStartDate = getWeekStart(now);
+        
+        if (dateObj < currentWeekStartDate) {
             alert("❌ Нельзя изменить прошедшие дни");
             return false;
         }
-
-        // 2. Будущие недели (начиная со следующего понедельника)
+        
+        const nextWeekStart = new Date(currentWeekStartDate);
+        nextWeekStart.setDate(currentWeekStartDate.getDate() + 7);
+        
         if (dateObj >= nextWeekStart) {
             if (newStatus === "office") {
                 if (!myPlace) { alert("У вас нет закреплённого места"); return false; }
@@ -191,19 +190,6 @@
             await loadData();
             return true;
         }
-
-        // 3. Текущая неделя (включая сегодня и до воскресенья)
-        if (newStatus === "office") {
-            alert("⚠️ На текущей неделе можно только освободить место (отметить 'Из дома'), но нельзя добавить 'В офисе'.");
-            return false;
-        } else {
-            // разрешаем освободить место (офис → дом)
-            const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
-            if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
-            await loadData();
-            return true;
-        }
-    }
         
         const defaultStatus = getDefaultStatus(currentUser, dateObj);
         
