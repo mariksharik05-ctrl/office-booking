@@ -219,14 +219,7 @@
         alert("❌ Нельзя менять прошедшие дни");
         return false;
     }
-        
-        const defaultStatus = getDefaultStatus(currentUser, dateObj);
-        
-        if (newStatus === "office") {
-            if (defaultStatus !== 1) {
-                alert("⚠️ По вашему расписанию на этот день вы дома. Вы не можете добавить 'В офисе' на текущей неделе.");
-                return false;
-            }
+    
             if (!myPlace) { alert("У вас нет закреплённого места"); return false; }
             const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
             if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
