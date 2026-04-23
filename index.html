@@ -76,7 +76,7 @@
                 💡 <strong>Правила:</strong><br>
                 • Будущие недели — можно менять (офис ↔ дом)<br>
                 • Текущая неделя — можно только освободить место (офис → дом)<br>
-                • Если в расписании дом — на текущей неделе нельзя добавить офис
+                • Если у вас нет места — сначала отметьте "В офисе", потом выберите место на карте
             </div>
         </div>
         <div id="mapTab" class="tab-content">
@@ -179,7 +179,10 @@
         
         if (dateObj >= nextWeekStart) {
             if (newStatus === "office") {
-                if (!myPlace) { alert("У вас нет закреплённого места"); return false; }
+                if (!myPlace) { 
+                    alert("У вас нет закреплённого места. Сначала отметьте 'В офисе', затем выберите место на карте.");
+                    return false;
+                }
                 const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                 if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
                 await supabase.from("bookings").insert([{ date: dateYMD, employee: currentUser, place: myPlace }]);
@@ -198,7 +201,10 @@
                 alert("⚠️ По вашему расписанию на этот день вы дома. Вы не можете добавить 'В офисе' на текущей неделе.");
                 return false;
             }
-            if (!myPlace) { alert("У вас нет закреплённого места"); return false; }
+            if (!myPlace) { 
+                alert("У вас нет закреплённого места. Сначала отметьте 'В офисе', затем выберите место на карте.");
+                return false;
+            }
             const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
             if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
             await supabase.from("bookings").insert([{ date: dateYMD, employee: currentUser, place: myPlace }]);
@@ -275,6 +281,9 @@
         }
         const dateObj = new Date(dateYMD);
         
+        // Получаем статус текущего пользователя на выбранный день
+        const userStatus = await getUserStatusForDate(currentUser, dateObj, dateYMD);
+        
         const rows = new Map();
         for (const place of places) {
             const y = place.pos_y;
@@ -292,19 +301,29 @@
                 const booking = bookings.find(b => b.date === dateYMD && b.place === place.name);
                 const employee = employees.find(e => e.place === place.name);
                 let color = "green", occupant = "";
+                
                 if (booking) {
+                    // Место забронировано
                     color = booking.employee === currentUser ? "blue" : "red";
                     occupant = booking.employee;
                 } else if (employee) {
+                    // У места есть владелец, но не забронировано
                     const isLeave = isOnLeave(employee.name, dateYMD);
                     if (isLeave) {
                         color = "green";
                     } else {
                         const defaultStatus = getDefaultStatus(employee.name, dateObj);
-                        if (defaultStatus === 1) { color = "red"; occupant = employee.name; }
-                        else color = "green";
+                        if (defaultStatus === 1) { 
+                            color = "red"; 
+                            occupant = employee.name;
+                        } else {
+                            color = "green";
+                        }
                     }
+                } else {
+                    color = "green";
                 }
+                
                 html += `<div class="map-place place-${color}" data-place="${place.name}"><strong>${place.name}</strong><br><span>${occupant || "свободно"}</span></div>`;
             }
             html += `</div>`;
@@ -326,10 +345,25 @@
         
         document.querySelectorAll(".map-place").forEach(el => {
             const placeName = el.dataset.place;
-            if (el.classList.contains('place-green')) {
+            const color = el.classList.contains('place-green') ? 'green' : 
+                         (el.classList.contains('place-blue') ? 'blue' : 
+                         (el.classList.contains('place-red') ? 'red' : 'gray'));
+            
+            if (color === 'green') {
                 el.onclick = async () => {
+                    // Проверяем, отметил ли пользователь "В офисе" на этот день
+                    if (userStatus !== "office") {
+                        alert("❌ Сначала отметьте 'В офисе' в вашем расписании на этот день, затем бронируйте место.");
+                        return;
+                    }
+                    
+                    // Проверяем, есть ли у пользователя своё место
                     const myPlace = employees.find(e => e.name === currentUser)?.place;
-                    if (myPlace) { alert(`У вас есть своё место: ${myPlace}`); return; }
+                    if (myPlace) {
+                        alert(`У вас есть своё место: ${myPlace}. Вы не можете забронировать другое.`);
+                        return;
+                    }
+                    
                     if (confirm(`Забронировать ${placeName} на ${formatDMY(dateObj)}?`)) {
                         const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                         if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
@@ -337,9 +371,10 @@
                         await loadData();
                         await renderMap();
                         await renderSchedule();
+                        alert(`✅ Место ${placeName} забронировано!`);
                     }
                 };
-            } else if (el.classList.contains('place-blue')) {
+            } else if (color === 'blue') {
                 el.onclick = async () => {
                     if (confirm(`Освободить ваше место ${placeName} на ${formatDMY(dateObj)}?`)) {
                         const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
