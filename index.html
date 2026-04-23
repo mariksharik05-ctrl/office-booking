@@ -74,8 +74,9 @@
             <div id="scheduleList" class="schedule-grid"></div>
             <div class="info-card" style="margin-top: 20px; font-size: 14px;">
                 💡 <strong>Правила:</strong><br>
-                • До воскресенья 23:59 — можно менять расписание на следующую неделю<br>
-                • С понедельника — изменения невозможны (только освободить место через карту, если заболели)
+                • Будущие недели — можно менять (офис ↔ дом)<br>
+                • Текущая неделя — можно только освободить место (офис → дом)<br>
+                • Если в расписании дом — на текущей неделе нельзя добавить офис
             </div>
         </div>
         <div id="mapTab" class="tab-content">
@@ -190,15 +191,13 @@
             return true;
         }
         
-        const nowDay = now.getDay();
-        const isMondayOrLater = nowDay >= 1 && nowDay <= 6;
-        
-        if (isMondayOrLater) {
-            alert("⚠️ Текущая неделя уже началась. Изменить расписание на эту неделю нельзя. Если вы заболели, освободите место через карту.");
-            return false;
-        }
+        const defaultStatus = getDefaultStatus(currentUser, dateObj);
         
         if (newStatus === "office") {
+            if (defaultStatus !== 1) {
+                alert("⚠️ По вашему расписанию на этот день вы дома. Вы не можете добавить 'В офисе' на текущей неделе.");
+                return false;
+            }
             if (!myPlace) { alert("У вас нет закреплённого места"); return false; }
             const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
             if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
