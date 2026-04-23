@@ -76,7 +76,7 @@
                 💡 <strong>Правила:</strong><br>
                 • Будущие недели — можно менять (офис ↔ дом)<br>
                 • Текущая неделя — можно только освободить место (офис → дом)<br>
-                • Если у вас нет места — сначала отметьте "В офисе", потом выберите место на карте
+                • Если в расписании дом — на текущей неделе нельзя добавить офис
             </div>
         </div>
         <div id="mapTab" class="tab-content">
@@ -166,33 +166,59 @@
     async function setUserStatus(dateYMD, newStatus) {
         const myPlace = employees.find(e => e.name === currentUser)?.place;
         const dateObj = new Date(dateYMD);
+
         const now = new Date();
         const currentWeekStartDate = getWeekStart(now);
-        
-        if (dateObj < currentWeekStartDate) {
-            alert("❌ Нельзя изменить прошедшие дни");
-            return false;
-        }
-        
+
         const nextWeekStart = new Date(currentWeekStartDate);
         nextWeekStart.setDate(currentWeekStartDate.getDate() + 7);
-        
-        if (dateObj >= nextWeekStart) {
+
+        const isFutureWeek = dateObj >= nextWeekStart;
+        const isCurrentWeek = dateObj >= currentWeekStartDate && dateObj < nextWeekStart;
+
+        const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
+
+        // ================== БУДУЩИЕ НЕДЕЛИ ==================
+        if (isFutureWeek) {
             if (newStatus === "office") {
-                if (!myPlace) { 
-                    alert("У вас нет закреплённого места. Сначала отметьте 'В офисе', затем выберите место на карте.");
-                    return false;
-                }
-                const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                 if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
-                await supabase.from("bookings").insert([{ date: dateYMD, employee: currentUser, place: myPlace }]);
+
+                await supabase.from("bookings").insert([{
+                    date: dateYMD,
+                    employee: currentUser,
+                    place: myPlace || null
+                }]);
             } else {
-                const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                 if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
             }
+
             await loadData();
             return true;
         }
+
+        // ================== ТЕКУЩАЯ НЕДЕЛЯ ==================
+        if (isCurrentWeek) {
+            const currentStatus = await getUserStatusForDate(currentUser, dateObj, dateYMD);
+
+            // ❌ Запрещаем home → office
+            if (currentStatus === "home" && newStatus === "office") {
+                alert("❌ На текущей неделе нельзя добавлять 'В офисе'");
+                return false;
+            }
+
+            // ✅ Разрешаем office → home
+            if (currentStatus === "office" && newStatus === "home") {
+                if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
+            }
+
+            await loadData();
+            return true;
+        }
+
+        // ================== ПРОШЛОЕ ==================
+        alert("❌ Нельзя менять прошедшие дни");
+        return false;
+    }
         
         const defaultStatus = getDefaultStatus(currentUser, dateObj);
         
@@ -201,10 +227,7 @@
                 alert("⚠️ По вашему расписанию на этот день вы дома. Вы не можете добавить 'В офисе' на текущей неделе.");
                 return false;
             }
-            if (!myPlace) { 
-                alert("У вас нет закреплённого места. Сначала отметьте 'В офисе', затем выберите место на карте.");
-                return false;
-            }
+            if (!myPlace) { alert("У вас нет закреплённого места"); return false; }
             const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
             if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
             await supabase.from("bookings").insert([{ date: dateYMD, employee: currentUser, place: myPlace }]);
@@ -281,9 +304,6 @@
         }
         const dateObj = new Date(dateYMD);
         
-        // Получаем статус текущего пользователя на выбранный день
-        const userStatus = await getUserStatusForDate(currentUser, dateObj, dateYMD);
-        
         const rows = new Map();
         for (const place of places) {
             const y = place.pos_y;
@@ -301,29 +321,19 @@
                 const booking = bookings.find(b => b.date === dateYMD && b.place === place.name);
                 const employee = employees.find(e => e.place === place.name);
                 let color = "green", occupant = "";
-                
                 if (booking) {
-                    // Место забронировано
                     color = booking.employee === currentUser ? "blue" : "red";
                     occupant = booking.employee;
                 } else if (employee) {
-                    // У места есть владелец, но не забронировано
                     const isLeave = isOnLeave(employee.name, dateYMD);
                     if (isLeave) {
                         color = "green";
                     } else {
                         const defaultStatus = getDefaultStatus(employee.name, dateObj);
-                        if (defaultStatus === 1) { 
-                            color = "red"; 
-                            occupant = employee.name;
-                        } else {
-                            color = "green";
-                        }
+                        if (defaultStatus === 1) { color = "red"; occupant = employee.name; }
+                        else color = "green";
                     }
-                } else {
-                    color = "green";
                 }
-                
                 html += `<div class="map-place place-${color}" data-place="${place.name}"><strong>${place.name}</strong><br><span>${occupant || "свободно"}</span></div>`;
             }
             html += `</div>`;
@@ -345,25 +355,10 @@
         
         document.querySelectorAll(".map-place").forEach(el => {
             const placeName = el.dataset.place;
-            const color = el.classList.contains('place-green') ? 'green' : 
-                         (el.classList.contains('place-blue') ? 'blue' : 
-                         (el.classList.contains('place-red') ? 'red' : 'gray'));
-            
-            if (color === 'green') {
+            if (el.classList.contains('place-green')) {
                 el.onclick = async () => {
-                    // Проверяем, отметил ли пользователь "В офисе" на этот день
-                    if (userStatus !== "office") {
-                        alert("❌ Сначала отметьте 'В офисе' в вашем расписании на этот день, затем бронируйте место.");
-                        return;
-                    }
-                    
-                    // Проверяем, есть ли у пользователя своё место
                     const myPlace = employees.find(e => e.name === currentUser)?.place;
-                    if (myPlace) {
-                        alert(`У вас есть своё место: ${myPlace}. Вы не можете забронировать другое.`);
-                        return;
-                    }
-                    
+                    if (myPlace) { alert(`У вас есть своё место: ${myPlace}`); return; }
                     if (confirm(`Забронировать ${placeName} на ${formatDMY(dateObj)}?`)) {
                         const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                         if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
@@ -371,10 +366,9 @@
                         await loadData();
                         await renderMap();
                         await renderSchedule();
-                        alert(`✅ Место ${placeName} забронировано!`);
                     }
                 };
-            } else if (color === 'blue') {
+            } else if (el.classList.contains('place-blue')) {
                 el.onclick = async () => {
                     if (confirm(`Освободить ваше место ${placeName} на ${formatDMY(dateObj)}?`)) {
                         const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
