@@ -265,10 +265,9 @@
         
         document.querySelectorAll(".schedule-day").forEach(el => {
             if (el.dataset.past === "true") return;
-            const currentStatus = el.dataset.currentStatus;
-            
             el.onclick = async () => {
                 const dateYMD = el.dataset.date;
+                const currentStatus = el.dataset.currentStatus;
                 const newStatus = currentStatus === "office" ? "home" : "office";
                 if (await setUserStatus(dateYMD, newStatus)) {
                     await renderSchedule();
