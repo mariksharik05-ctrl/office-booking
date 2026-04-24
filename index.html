@@ -76,7 +76,8 @@
                 💡 <strong>Правила:</strong><br>
                 • Будущие недели — можно менять (офис ↔ дом)<br>
                 • Текущая неделя — можно только освободить место (офис → дом)<br>
-                • Если в расписании дом — на текущей неделе нельзя добавить офис
+                • Если у вас есть место — оно бронируется автоматически при выборе "В офисе"<br>
+                • Если у вас нет места — сначала отметьте "В офисе", потом выберите место на карте
             </div>
         </div>
         <div id="mapTab" class="tab-content">
@@ -177,12 +178,12 @@
         const nextWeekStart = new Date(currentWeekStartDate);
         nextWeekStart.setDate(currentWeekStartDate.getDate() + 7);
         
+        // БУДУЩИЕ НЕДЕЛИ (начиная со следующего понедельника)
         if (dateObj >= nextWeekStart) {
             if (newStatus === "office") {
-                if (!myPlace) { alert("У вас нет закреплённого места"); return false; }
                 const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                 if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
-                await supabase.from("bookings").insert([{ date: dateYMD, employee: currentUser, place: myPlace }]);
+                await supabase.from("bookings").insert([{ date: dateYMD, employee: currentUser, place: myPlace || null }]);
             } else {
                 const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                 if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
@@ -191,23 +192,16 @@
             return true;
         }
         
-        const defaultStatus = getDefaultStatus(currentUser, dateObj);
-        
+        // ТЕКУЩАЯ НЕДЕЛЯ
         if (newStatus === "office") {
-            if (defaultStatus !== 1) {
-                alert("⚠️ По вашему расписанию на этот день вы дома. Вы не можете добавить 'В офисе' на текущей неделе.");
-                return false;
-            }
-            if (!myPlace) { alert("У вас нет закреплённого места"); return false; }
-            const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
-            if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
-            await supabase.from("bookings").insert([{ date: dateYMD, employee: currentUser, place: myPlace }]);
+            alert("⚠️ На текущей неделе можно только освободить место (отметить 'Из дома'), но нельзя добавить 'В офисе'.");
+            return false;
         } else {
             const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
             if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
+            await loadData();
+            return true;
         }
-        await loadData();
-        return true;
     }
 
     function renderProfile() {
@@ -275,6 +269,9 @@
         }
         const dateObj = new Date(dateYMD);
         
+        // Проверяем статус пользователя на выбранный день
+        const userStatus = await getUserStatusForDate(currentUser, dateObj, dateYMD);
+        
         const rows = new Map();
         for (const place of places) {
             const y = place.pos_y;
@@ -326,10 +323,24 @@
         
         document.querySelectorAll(".map-place").forEach(el => {
             const placeName = el.dataset.place;
-            if (el.classList.contains('place-green')) {
+            const color = el.classList.contains('place-green') ? 'green' : 
+                         (el.classList.contains('place-blue') ? 'blue' : 
+                         (el.classList.contains('place-red') ? 'red' : 'gray'));
+            
+            if (color === 'green') {
                 el.onclick = async () => {
+                    // Проверяем, что пользователь отметил "В офисе" на этот день
+                    if (userStatus !== "office") {
+                        alert("❌ Сначала отметьте 'В офисе' в вашем расписании на этот день, затем бронируйте место.");
+                        return;
+                    }
+                    
                     const myPlace = employees.find(e => e.name === currentUser)?.place;
-                    if (myPlace) { alert(`У вас есть своё место: ${myPlace}`); return; }
+                    if (myPlace) {
+                        alert(`У вас есть своё место: ${myPlace}. Вы не можете забронировать другое.`);
+                        return;
+                    }
+                    
                     if (confirm(`Забронировать ${placeName} на ${formatDMY(dateObj)}?`)) {
                         const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                         if (existing) await supabase.from("bookings").delete().eq("id", existing.id);
@@ -337,9 +348,10 @@
                         await loadData();
                         await renderMap();
                         await renderSchedule();
+                        alert(`✅ Место ${placeName} забронировано!`);
                     }
                 };
-            } else if (el.classList.contains('place-blue')) {
+            } else if (color === 'blue') {
                 el.onclick = async () => {
                     if (confirm(`Освободить ваше место ${placeName} на ${formatDMY(dateObj)}?`)) {
                         const existing = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
