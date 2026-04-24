@@ -153,7 +153,14 @@
     function isOnLeave(employeeName, dateYMD) {
         return leaves.some(l => l.employee === employeeName && dateYMD >= l.start_date && dateYMD <= l.end_date);
     }
-
+    async function getUserStatusForDate(employeeName, date, dateYMD) {
+        const isLeave = isOnLeave(employeeName, dateYMD);
+        if (isLeave) return "home";
+        const booking = bookings.find(b => b.date === dateYMD && b.employee === employeeName);
+        if (booking) return "office";
+        const defaultStatus = getDefaultStatus(employeeName, date);
+        return defaultStatus === 1 ? "office" : "home";
+    }
     async function setUserStatus(dateYMD, newStatus) {
         const myPlace = employees.find(e => e.name === currentUser)?.place;
         const dateObj = new Date(dateYMD);
