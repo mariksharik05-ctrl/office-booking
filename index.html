@@ -182,8 +182,10 @@
     function getUserStatus(employeeName, date, dateYMD) {
         // 1. Бронь (разовое изменение)
         const booking = bookings.find(b => b.date === dateYMD && b.employee === employeeName);
-        if (booking) return "office";
-        
+        if (booking) {
+            if (booking.place === null) return "home"; // override "дом"
+            return "office";
+        }
         // 2. Отпуск
         const leave = leaves.find(l => l.employee === employeeName && dateYMD >= l.start_date && dateYMD <= l.end_date);
         if (leave) return "leave";
@@ -227,61 +229,76 @@
     // ==================== ПЕРЕКЛЮЧЕНИЕ СТАТУСА (ПРОСТОЕ) ====================
     async function toggleOfficeStatus(dateYMD) {
         const dateObj = new Date(dateYMD);
+        const today = new Date();
+
+        const weekStart = getWeekStart(today);
+        const nextWeekStart = new Date(weekStart);
+        nextWeekStart.setDate(weekStart.getDate() + 7);
+
         const emp = employees.find(e => e.name === currentUser);
         const currentStatus = getUserStatus(currentUser, dateObj, dateYMD);
-        
-        // Отпуск нельзя менять
+
+        // ❌ Отпуск нельзя менять
         if (currentStatus === "leave") {
-            alert("🏖️ У вас отпуск в этот день");
+            alert("🏖️ У вас отпуск");
             return;
         }
-        
-        if (currentStatus === "office") {
-            // Офис → Дом: удаляем бронь если есть
-            const booking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
-            if (booking) {
-                await supabase.from("bookings").delete().eq("id", booking.id);
+
+        const isFuture = dateObj >= nextWeekStart;
+        const isCurrentWeek = dateObj >= weekStart && dateObj < nextWeekStart;
+
+        // ================= FUTURE =================
+        if (isFuture) {
+            if (currentStatus === "office") {
+                // офис → дом
+                const booking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
+                if (booking) {
+                    await supabase.from("bookings").delete().eq("id", booking.id);
+                } else {
+                    // офис был по расписанию → делаем override "дом"
+                    await supabase.from("bookings").insert([{
+                        date: dateYMD,
+                        employee: currentUser,
+                        place: null // маркер "не в офисе"
+                    }]);
+                }
+            } else {
+                // дом → офис
+                if (!emp?.place) {
+                    alert("Нет закреплённого места");
+                    return;
+                }
+
+                await supabase.from("bookings").insert([{
+                    date: dateYMD,
+                    employee: currentUser,
+                    place: emp.place
+                }]);
             }
-            await loadData();
-            await renderSchedule();
-            await renderMap();
-            return;
         }
-        
-        // Дом → Офис: создаём бронь
-        const place = emp?.place;
-        if (!place) {
-            alert("❌ У вас нет закреплённого места. Забронируйте через карту.");
-            return;
-        }
-        
-        // Проверяем shared_with
-        if (emp.shared_with) {
-            const sharedBooking = bookings.find(b => 
-                b.date === dateYMD && b.employee === emp.shared_with && b.place === place
-            );
-            if (sharedBooking) {
-                alert(`⚠️ ${emp.shared_with} уже забронировал(а) место ${place}`);
+
+        // ================= CURRENT WEEK =================
+        else if (isCurrentWeek) {
+            if (currentStatus === "office") {
+                // ✅ МОЖНО только офис → дом
+                const booking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
+
+                if (booking) {
+                    await supabase.from("bookings").delete().eq("id", booking.id);
+                } else {
+                    // офис по расписанию → делаем override
+                    await supabase.from("bookings").insert([{
+                        date: dateYMD,
+                        employee: currentUser,
+                        place: null
+                    }]);
+                }
+            } else {
+                alert("⚠️ На текущей неделе нельзя добавить офис");
                 return;
             }
         }
-        
-        // Проверяем, не занято ли место
-        const existingPlace = bookings.find(b => 
-            b.date === dateYMD && b.place === place && b.employee !== currentUser
-        );
-        if (existingPlace) {
-            alert(`⚠️ Место ${place} уже занято ${existingPlace.employee}`);
-            return;
-        }
-        
-        // Создаём бронь
-        await supabase.from("bookings").insert([{ 
-            date: dateYMD, 
-            employee: currentUser, 
-            place: place 
-        }]);
-        
+
         await loadData();
         await renderSchedule();
         await renderMap();
