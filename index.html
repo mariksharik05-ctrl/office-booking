@@ -35,8 +35,27 @@
         .status-leave { background: #ff9500; color: white; }
         
         .map-grid { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 20px; }
-        .map-row { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
-        .map-place { width: 110px; padding: 12px 8px; border-radius: 16px; text-align: center; cursor: pointer; transition: 0.2s; font-size: 13px; }
+        .map-row {
+            display: flex;
+            justify-content: flex-end;  /* прижимаем к правому краю */
+            gap: 16px;
+            width: 100%;               /* важно */
+        }
+        .map-place {
+            width: 140px;        /* шире */
+            height: 80px;        /* фиксируем высоту */
+            padding: 12px;
+            border-radius: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 13px;
+
+            display: flex;               /* выравнивание текста */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
         .map-place:hover { transform: scale(1.05); }
         .place-red { background: #ff3b30; color: white; }
         .place-green { background: #34c759; color: white; }
