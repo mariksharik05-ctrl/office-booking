@@ -33,7 +33,6 @@
         .status-office { background: #007aff; color: white; }
         .status-home { background: #34c759; color: white; }
         .status-leave { background: #ff9500; color: white; }
-        .day-note { font-size: 11px; color: #888; margin-left: 8px; }
         
         .map-grid { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 20px; }
         .map-row { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
@@ -99,8 +98,7 @@
             </div>
             <div id="scheduleList" class="schedule-grid"></div>
             <div class="info-card" style="margin-top: 20px; font-size: 14px;">
-                💡 Кликайте по дням, чтобы изменить статус на выбранную дату.<br>
-                Изменение действует только на этот день, базовое расписание не меняется.
+                💡 Кликайте по дням, чтобы переключить офис ↔ дом. Изменения действуют только на выбранный день и не меняют базовое расписание.
             </div>
         </div>
 
@@ -180,35 +178,24 @@
         leaves = leavesRes.data || [];
     }
 
-    // Базовое расписание (0=дом, 1=офис)
-    function getBaseSchedule(employeeName, date) {
-        const sched = schedules.find(s => s.employee === employeeName);
-        if (!sched) return "home";
-        const dayName = getDayName(date);
-        return sched[dayName] === 1 ? "office" : "home";
-    }
-
-    // Есть ли бронь на дату
-    function getBooking(employeeName, dateYMD) {
-        return bookings.find(b => b.date === dateYMD && b.employee === employeeName);
-    }
-
-    // Отпуск
-    function isOnLeave(employeeName, dateYMD) {
-        return leaves.some(l => l.employee === employeeName && dateYMD >= l.start_date && dateYMD <= l.end_date);
-    }
-
     // Итоговый статус: бронь > отпуск > базовое расписание
     function getUserStatus(employeeName, date, dateYMD) {
-        // Сначала проверяем бронь (разовое изменение)
-        const booking = getBooking(employeeName, dateYMD);
-        if (booking) return "office"; // Если есть бронь — точно в офисе
+        // 1. Бронь (разовое изменение)
+        const booking = bookings.find(b => b.date === dateYMD && b.employee === employeeName);
+        if (booking) return "office";
         
-        // Потом отпуск
-        if (isOnLeave(employeeName, dateYMD)) return "leave";
+        // 2. Отпуск
+        const leave = leaves.find(l => l.employee === employeeName && dateYMD >= l.start_date && dateYMD <= l.end_date);
+        if (leave) return "leave";
         
-        // Потом базовое расписание
-        return getBaseSchedule(employeeName, date);
+        // 3. Базовое расписание
+        const sched = schedules.find(s => s.employee === employeeName);
+        if (sched) {
+            const dayName = getDayName(date);
+            if (sched[dayName] === 1) return "office";
+        }
+        
+        return "home";
     }
 
     // ==================== ПРОФИЛЬ ====================
@@ -237,81 +224,67 @@
         return officeDays.length ? officeDays.join(', ') : "все дни удалённо";
     }
 
-    // ==================== ПЕРЕКЛЮЧЕНИЕ СТАТУСА ====================
+    // ==================== ПЕРЕКЛЮЧЕНИЕ СТАТУСА (ПРОСТОЕ) ====================
     async function toggleOfficeStatus(dateYMD) {
         const dateObj = new Date(dateYMD);
         const emp = employees.find(e => e.name === currentUser);
         const currentStatus = getUserStatus(currentUser, dateObj, dateYMD);
         
+        // Отпуск нельзя менять
         if (currentStatus === "leave") {
-            alert("🏖️ У вас отпуск в этот день, нельзя изменить");
+            alert("🏖️ У вас отпуск в этот день");
             return;
         }
         
         if (currentStatus === "office") {
-            // Сейчас офис → переключаем на дом
-            
-            // Проверяем, это бронь или базовое расписание
-            const booking = getBooking(currentUser, dateYMD);
-            const base = getBaseSchedule(currentUser, dateObj);
-            
+            // Офис → Дом: удаляем бронь если есть
+            const booking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
             if (booking) {
-                // Удаляем бронь
                 await supabase.from("bookings").delete().eq("id", booking.id);
-                await loadData();
-                alert(`✅ ${formatDMY(dateObj)}: бронь удалена → по базовому расписанию вы дома`);
-            } else if (base === "office") {
-                // Брони нет, но по базовому расписанию офис → создаём "отменяющую" бронь
-                // Для этого добавляем в bookings запись с пустым местом (признак "дома")
-                // Или просто меняем базовое... Нет, базовое не трогаем!
-                // Вариант: создаём специальную бронь "home"
-                // Но в нашей системе bookings только для офиса.
-                // Поэтому: добавляем фиктивное место "ДОМ", которое не отображается на карте
-                alert(`⚠️ ${formatDMY(dateObj)}: по базовому расписанию вы в офисе. Чтобы отметить "из дома", используйте отпуск (админ) или договоритесь с руководителем об изменении базового расписания.`);
-                return;
-            } else {
-                // Уже дом — ничего не делаем
-                alert(`🏠 ${formatDMY(dateObj)}: вы и так дома`);
-                return;
             }
-        } else {
-            // Сейчас дом → переключаем на офис
-            const place = emp?.place;
-            if (!place) {
-                alert("❌ У вас нет закреплённого места. Забронируйте через карту.");
-                return;
-            }
-            
-            // Проверяем shared_with
-            if (emp.shared_with) {
-                const sharedBooking = bookings.find(b => 
-                    b.date === dateYMD && b.employee === emp.shared_with && b.place === place
-                );
-                if (sharedBooking) {
-                    alert(`⚠️ ${emp.shared_with} уже забронировал(а) место ${place}`);
-                    return;
-                }
-            }
-            
-            // Проверяем, не занято ли место
-            const existingPlace = bookings.find(b => 
-                b.date === dateYMD && b.place === place && b.employee !== currentUser
-            );
-            if (existingPlace) {
-                alert(`⚠️ Место ${place} уже занято ${existingPlace.employee}`);
-                return;
-            }
-            
-            // Создаём бронь
-            await supabase.from("bookings").insert([{ 
-                date: dateYMD, 
-                employee: currentUser, 
-                place: place 
-            }]);
-            
             await loadData();
-            alert(`✅ ${formatDMY(dateObj)}: вы в офисе (разовое бронирование)`);
+            await renderSchedule();
+            await renderMap();
+            return;
         }
+        
+        // Дом → Офис: создаём бронь
+        const place = emp?.place;
+        if (!place) {
+            alert("❌ У вас нет закреплённого места. Забронируйте через карту.");
+            return;
+        }
+        
+        // Проверяем shared_with
+        if (emp.shared_with) {
+            const sharedBooking = bookings.find(b => 
+                b.date === dateYMD && b.employee === emp.shared_with && b.place === place
+            );
+            if (sharedBooking) {
+                alert(`⚠️ ${emp.shared_with} уже забронировал(а) место ${place}`);
+                return;
+            }
+        }
+        
+        // Проверяем, не занято ли место
+        const existingPlace = bookings.find(b => 
+            b.date === dateYMD && b.place === place && b.employee !== currentUser
+        );
+        if (existingPlace) {
+            alert(`⚠️ Место ${place} уже занято ${existingPlace.employee}`);
+            return;
+        }
+        
+        // Создаём бронь
+        await supabase.from("bookings").insert([{ 
+            date: dateYMD, 
+            employee: currentUser, 
+            place: place 
+        }]);
+        
+        await loadData();
+        await renderSchedule();
+        await renderMap();
     }
 
     async function renderSchedule() {
@@ -324,36 +297,20 @@
             const date = weekDates[i];
             const dateYMD = formatYMD(date);
             const status = getUserStatus(currentUser, date, dateYMD);
-            const booking = getBooking(currentUser, dateYMD);
-            const base = getBaseSchedule(currentUser, date);
             
-            let statusText, statusClass, note = "";
+            let statusText, statusClass;
             if (status === "leave") {
                 statusText = "🏖️ Отпуск";
                 statusClass = "status-leave";
-            } else if (status === "office") {
-                statusText = "🏢 В офисе";
-                statusClass = "status-office";
-                if (booking) {
-                    note = "(разовое бронирование)";
-                } else {
-                    note = "(по расписанию)";
-                }
             } else {
-                statusText = "🏠 Из дома";
-                statusClass = "status-home";
-                if (base === "office") {
-                    note = "(отмена офиса)";
-                }
+                statusText = status === "office" ? "🏢 В офисе" : "🏠 Из дома";
+                statusClass = status === "office" ? "status-office" : "status-home";
             }
             
             html += `
                 <div class="schedule-day ${status}" data-date="${dateYMD}">
                     <span class="day-name">${days[i]} <small>(${formatDMY(date)})</small></span>
-                    <span>
-                        <span class="day-status ${statusClass}">${statusText}</span>
-                        ${note ? `<span class="day-note">${note}</span>` : ''}
-                    </span>
+                    <span class="day-status ${statusClass}">${statusText}</span>
                 </div>
             `;
         }
@@ -365,8 +322,6 @@
             el.onclick = async () => {
                 const dateYMD = el.dataset.date;
                 await toggleOfficeStatus(dateYMD);
-                await renderSchedule();
-                await renderMap();
             };
         });
     }
@@ -408,42 +363,32 @@
                         colleagues.push(booking.employee);
                     }
                 } else if (owner) {
-                    const ownerLeave = isOnLeave(owner.name, dateYMD);
-                    if (ownerLeave) {
+                    const ownerStatus = getUserStatus(owner.name, dateObj, dateYMD);
+                    if (ownerStatus === "leave") {
                         color = "orange";
                         occupant = owner.name;
-                    } else {
-                        const ownerStatus = getUserStatus(owner.name, dateObj, dateYMD);
-                        if (ownerStatus === "office") {
-                            color = "red";
-                            occupant = owner.name;
-                            if (owner.name !== currentUser && !colleagues.includes(owner.name)) {
-                                colleagues.push(owner.name);
-                            }
+                    } else if (ownerStatus === "office") {
+                        color = "red";
+                        occupant = owner.name;
+                        if (owner.name !== currentUser && !colleagues.includes(owner.name)) {
+                            colleagues.push(owner.name);
                         }
                     }
                 }
                 
-                // shared_with: проверяем совладельца
-                if (owner && owner.shared_with) {
+                // shared_with
+                if (owner && owner.shared_with && color === "green") {
                     const sharedPerson = owner.shared_with;
-                    const sharedBooking = bookings.find(b => b.date === dateYMD && b.employee === sharedPerson && b.place === place.name);
-                    if (sharedBooking) {
-                        if (sharedBooking.employee === currentUser) {
+                    const sharedStatus = getUserStatus(sharedPerson, dateObj, dateYMD);
+                    if (sharedStatus === "office") {
+                        const sharedBooking = bookings.find(b => b.date === dateYMD && b.employee === sharedPerson && b.place === place.name);
+                        if (sharedBooking?.employee === currentUser) {
                             color = "blue";
                             occupant = currentUser;
-                        } else if (!booking) {
+                        } else {
                             color = "red";
-                            occupant = sharedPerson;
-                            if (!colleagues.includes(sharedPerson)) colleagues.push(sharedPerson);
-                        }
-                    } else {
-                        const sharedLeave = isOnLeave(sharedPerson, dateYMD);
-                        if (!sharedLeave) {
-                            const sharedStatus = getUserStatus(sharedPerson, dateObj, dateYMD);
-                            if (sharedStatus === "office" && !booking && !colleagues.includes(sharedPerson)) {
-                                // Не показываем, т.к. место уже занято основным владельцем
-                            }
+                            occupant = sharedBooking?.employee || sharedPerson;
+                            if (!colleagues.includes(occupant)) colleagues.push(occupant);
                         }
                     }
                 }
@@ -456,7 +401,6 @@
         }
         document.getElementById("officeMap").innerHTML = html;
         
-        // Коллеги под картой
         document.getElementById("colleaguesOnMap").innerHTML = `
             <h4>👥 В офисе ${formatDMY(dateObj)}</h4>
             <ul>${colleagues.length ? colleagues.map(c => `<li>${c}</li>`).join('') : '<li>Никого нет</li>'}</ul>
@@ -469,7 +413,6 @@
                 const color = el.dataset.color;
                 
                 if (color === "blue") {
-                    // Своё место — освободить
                     if (confirm(`Освободить место ${placeName}?`)) {
                         const myBooking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                         if (myBooking) {
@@ -483,7 +426,6 @@
                 }
                 
                 if (color === "green") {
-                    // Свободно — забронировать
                     if (confirm(`Забронировать ${placeName} на ${formatDMY(dateObj)}?`)) {
                         const alreadyBooked = bookings.find(b => b.date === dateYMD && b.place === placeName);
                         if (alreadyBooked) {
@@ -529,19 +471,6 @@
                     <button id="addLeaveBtn">➕ Добавить</button>
                 </div>
                 <div id="leavesList" style="margin-top: 10px; font-size: 13px;"></div>
-                
-                <h4 style="margin-top: 16px;">📋 Базовые расписания</h4>
-                <div style="font-size: 12px; max-height: 200px; overflow-y: auto;">
-                    ${schedules.filter(s => s.employee !== 'Админ').map(s => {
-                        const days = ['mon','tue','wed','thu','fri','sat','sun'];
-                        const names = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-                        const office = days.filter(d => s[d] === 1).map((_,i) => names[i]);
-                        return `<div>• ${s.employee}: ${office.length ? office.join(', ') : 'удалённо'}</div>`;
-                    }).join('')}
-                </div>
-                <div style="font-size: 11px; color: #888; margin-top: 8px;">
-                    Изменить базовое расписание можно в таблице schedules в Supabase
-                </div>
             </div>`;
         
         const select = document.getElementById("leaveEmployee");
