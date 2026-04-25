@@ -34,7 +34,17 @@
         .status-home { background: #34c759; color: white; }
         .status-leave { background: #ff9500; color: white; }
         
-        .map-grid { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 20px; }
+        .map-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 20px;
+
+            width: 100%;
+            max-width: 700px;   /* регулируй ширину карты */
+            margin-left: auto;
+            margin-right: auto;
+        }
         .map-row {
             display: flex;
             justify-content: flex-end;  /* прижимаем к правому краю */
