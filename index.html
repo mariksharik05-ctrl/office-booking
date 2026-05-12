@@ -75,7 +75,6 @@
         .place-green { background: #34c759; color: white; }
         .place-red { background: #ff3b30; color: white; }
         .place-blue { background: #007aff; color: white; box-shadow: 0 0 0 2px white, 0 0 0 4px #007aff; }
-        .place-orange { background: #ff9500; color: white; }
         .colleagues-list { background: #f2f2f7; padding: 16px; border-radius: 20px; margin-top: 20px; }
         .colleagues-list ul { list-style: none; padding: 0; margin: 0; }
         .colleagues-list li { padding: 8px 0; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; gap: 8px; }
@@ -132,7 +131,7 @@
             </div>
             <div id="scheduleList" class="schedule-grid"></div>
             <div class="info-card" style="margin-top: 20px; font-size: 14px;">
-                💡 Кликайте по дням, чтобы переключить офис ↔ дом. Если у вас есть закреплённое место — оно автоматически используется, когда вы в офисе.
+                💡 Кликайте по дням, чтобы переключить офис ↔ дом. Если у вас есть закреплённое место — вы работаете на нём.
             </div>
         </div>
 
@@ -143,7 +142,7 @@
             <div class="legend">
                 <span><span class="legend-dot" style="background:#34c759;"></span> Свободно</span>
                 <span><span class="legend-dot" style="background:#ff3b30;"></span> Занято другим</span>
-                <span><span class="legend-dot" style="background:#007aff;"></span> Моё место (ваше)</span>
+                <span><span class="legend-dot" style="background:#007aff;"></span> Моё место</span>
             </div>
             <div id="officeMap" class="map-grid"></div>
             <div id="colleaguesOnMap" class="colleagues-list"></div>
@@ -218,17 +217,14 @@
 
     // Итоговый статус для пользователя (офис/дом/отпуск)
     function getUserStatus(employeeName, date, dateYMD) {
-        // 1. Отпуск — приоритет (меняет всё, место освобождается)
         if (isOnLeave(employeeName, dateYMD)) return "leave";
         
-        // 2. Бронь (разовое изменение)
         const booking = bookings.find(b => b.date === dateYMD && b.employee === employeeName);
         if (booking) {
             if (booking.place === null) return "home";
             return "office";
         }
         
-        // 3. Базовое расписание
         const sched = schedules.find(s => s.employee === employeeName);
         if (sched) {
             const dayName = getDayName(date);
@@ -239,11 +235,9 @@
 
     // Получить место, которое занимает сотрудник в указанную дату (если в офисе)
     function getOccupiedPlace(employeeName, dateYMD) {
-        // проверяем бронь
         const booking = bookings.find(b => b.date === dateYMD && b.employee === employeeName);
         if (booking && booking.place !== null) return booking.place;
         
-        // если не в отпуске и статус офис — берём закреплённое место
         if (!isOnLeave(employeeName, dateYMD)) {
             const emp = employees.find(e => e.name === employeeName);
             const status = getUserStatus(employeeName, new Date(dateYMD), dateYMD);
@@ -257,12 +251,6 @@
         const emp = employees.find(e => e.name === currentUser);
         const hasPlace = emp?.place ? `✅ ${emp.place}` : '❌ Нет закреплённого места';
         const shared = emp?.shared_with ? ` (совместно с ${emp.shared_with})` : '';
-        let placeWarning = '';
-        if (emp?.place) {
-            placeWarning = `<div class="my-place-badge">📍 Ваше постоянное место: <strong>${emp.place}</strong>. Вы не можете бронировать другие места, только использовать своё.</div>`;
-        } else {
-            placeWarning = `<div class="my-place-badge" style="background:#ff950020; border-left-color:#ff9500;">⚠️ У вас нет закреплённого места. Чтобы работать в офисе, забронируйте свободное место на карте.</div>`;
-        }
         
         document.getElementById("profileInfo").innerHTML = `
             <h2>👋 ${currentUser}</h2>
@@ -270,13 +258,12 @@
                 <strong>🏷️ Моё место:</strong> ${hasPlace}${shared}<br>
                 <strong>📅 Базовое расписание:</strong> ${getScheduleText(emp?.name)}
             </div>
-            ${placeWarning}
         `;
     }
 
     function getScheduleText(name) {
         const sched = schedules.find(s => s.employee === name);
-        if (!sched) return "не задано (по умолчанию дом)";
+        if (!sched) return "не задано";
         const days = ['mon','tue','wed','thu','fri','sat','sun'];
         const names = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
         const officeDays = [];
@@ -286,7 +273,7 @@
         return officeDays.length ? officeDays.join(', ') : "все дни удалённо";
     }
 
-    // ==================== ПЕРЕКЛЮЧЕНИЕ СТАТУСА (РАСПИСАНИЕ) ====================
+    // ==================== ПЕРЕКЛЮЧЕНИЕ СТАТУСА ====================
     async function toggleOfficeStatus(dateYMD) {
         const dateObj = new Date(dateYMD);
         const today = new Date();
@@ -299,7 +286,6 @@
         const emp = employees.find(e => e.name === currentUser);
         const currentStatus = getUserStatus(currentUser, dateObj, dateYMD);
         
-        // ❌ Отпуск нельзя менять
         if (currentStatus === "leave") {
             alert("🏖️ У вас отпуск в этот день. Нельзя изменить статус.");
             return;
@@ -308,18 +294,8 @@
         const isFuture = dateObj >= nextWeekStart;
         const isCurrentWeek = dateObj >= weekStart && dateObj < nextWeekStart;
         
-        // Если пытаемся включить ОФИС, но у пользователя нет места — запретить
-        if (currentStatus !== "office") {
-            if (!emp?.place) {
-                alert("❌ У вас нет закреплённого места. Сначала получите место от администратора, чтобы отмечать офис.");
-                return;
-            }
-        }
-        
-        // ========== Будущие недели (разрешено добавлять/убирать офис) ==========
         if (isFuture) {
             if (currentStatus === "office") {
-                // офис → дом
                 const booking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                 if (booking) {
                     await supabase.from("bookings").delete().eq("id", booking.id);
@@ -331,15 +307,23 @@
                     }]);
                 }
             } else {
-                // дом → офис
-                await supabase.from("bookings").insert([{
-                    date: dateYMD,
-                    employee: currentUser,
-                    place: emp.place
-                }]);
+                const targetPlace = emp?.place || null;
+                if (!targetPlace && !emp?.place) {
+                    // если нет места, то бронируем null? но лучше предупредить — но не блокируем
+                    await supabase.from("bookings").insert([{
+                        date: dateYMD,
+                        employee: currentUser,
+                        place: null
+                    }]);
+                } else {
+                    await supabase.from("bookings").insert([{
+                        date: dateYMD,
+                        employee: currentUser,
+                        place: emp.place
+                    }]);
+                }
             }
         }
-        // ========== Текущая неделя: только переход из офиса в дом ==========
         else if (isCurrentWeek) {
             if (currentStatus === "office") {
                 const booking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
@@ -353,7 +337,7 @@
                     }]);
                 }
             } else {
-                alert("⚠️ На текущей неделе можно только отказаться от офиса (офис -> дом). Добавить офис можно только на будущие недели.");
+                alert("⚠️ На текущей неделе можно только отказаться от офиса (офис -> дом).");
                 return;
             }
         } else {
@@ -410,7 +394,7 @@
         });
     }
 
-    // ==================== КАРТА (ОБНОВЛЕННАЯ ЛОГИКА) ====================
+    // ==================== КАРТА ====================
     async function renderMap() {
         let dateYMD = document.getElementById("mapDatePicker")?.value;
         if (!dateYMD) {
@@ -420,32 +404,27 @@
         const dateObj = new Date(dateYMD);
         
         const myFixedPlace = employees.find(e => e.name === currentUser)?.place || null;
-        const hasFixedPlace = !!myFixedPlace;
         
-        // Сначала строим occupancy: кто занимает каждое место в выбранную дату
-        const placeOccupant = new Map(); // place name -> employee name (кто физически сидит)
+        // Строим occupancy: кто занимает каждое место
+        const placeOccupant = new Map();
         
         for (const emp of employees) {
             if (emp.name === "Админ") continue;
             const inLeave = isOnLeave(emp.name, dateYMD);
-            // Если в отпуске — не занимает место (освобождает)
-            if (inLeave) continue;
+            if (inLeave) continue; // отпуск — место свободно
             
             const status = getUserStatus(emp.name, dateObj, dateYMD);
             if (status === "office") {
-                // сотрудник в офисе: либо по брони, либо постоянное место
                 let occupiedPlace = getOccupiedPlace(emp.name, dateYMD);
                 if (occupiedPlace) {
-                    // Если место уже занято кем-то другим через бронь — приоритет у брони
-                    const existing = placeOccupant.get(occupiedPlace);
-                    if (!existing) {
+                    if (!placeOccupant.has(occupiedPlace)) {
                         placeOccupant.set(occupiedPlace, emp.name);
                     }
                 }
             }
         }
         
-        // Также проверяем брони, которые явно заданы (могут быть на место без владельца)
+        // также брони
         for (const book of bookings) {
             if (book.date === dateYMD && book.place !== null) {
                 const bookOwner = book.employee;
@@ -455,7 +434,7 @@
             }
         }
         
-        // Группировка мест по рядам
+        // группировка
         const rows = new Map();
         for (const place of places) {
             const y = place.pos_y;
@@ -474,8 +453,8 @@
             
             for (const place of placesInRow) {
                 const occupant = placeOccupant.get(place.name);
-                let color = "green"; // свободно
-                let occupantName = "";
+                let color = "green";
+                let occupantName = "свободно";
                 let isMyPlace = (myFixedPlace === place.name);
                 
                 if (occupant) {
@@ -489,12 +468,9 @@
                         colleaguesInOffice.add(occupant);
                     }
                 } else {
-                    // свободно: если у текущего пользователя это его постоянное место — все равно синий фон, но свободно для других
-                    if (isMyPlace && !occupant) {
+                    if (isMyPlace) {
                         color = "blue";
                         occupantName = "Ваше место";
-                    } else {
-                        occupantName = "свободно";
                     }
                 }
                 
@@ -511,14 +487,17 @@
             <ul>${colleaguesInOffice.size ? Array.from(colleaguesInOffice).map(c => `<li>${c}</li>`).join('') : '<li>✨ Никого из коллег</li>'}</ul>
         `;
         
-        // Обработка кликов по местам
+        // Клики
         document.querySelectorAll(".map-place").forEach(el => {
             el.onclick = async () => {
                 const placeName = el.dataset.place;
                 const color = el.dataset.color;
                 const occupantText = el.querySelector("span")?.innerText || "";
                 
-                // Синее место — моё текущее (либо занято мной, либо моё постоянное)
+                const emp = employees.find(e => e.name === currentUser);
+                const hasOwnPlace = emp?.place != null;
+                
+                // Синее — моё место
                 if (color === "blue") {
                     if (occupantText === currentUser || occupantText === "Ваше место") {
                         if (confirm(`Освободить место ${placeName} на ${formatDMY(dateObj)}? Вы перейдёте в режим "Дом".`)) {
@@ -526,7 +505,6 @@
                             if (myBooking) {
                                 await supabase.from("bookings").delete().eq("id", myBooking.id);
                             } else {
-                                // Если нет брони, но место занято через расписание — создаем override на дом
                                 await supabase.from("bookings").insert([{
                                     date: dateYMD,
                                     employee: currentUser,
@@ -538,29 +516,28 @@
                             await renderSchedule();
                         }
                     } else {
-                        alert(`Место ${placeName} сейчас занято, вы не можете его освободить.`);
+                        alert(`Место ${placeName} — ваше постоянное, но сейчас занято? Ошибка.`);
                     }
                     return;
                 }
                 
-                // Занято красным
+                // Красное — занято другим
                 if (color === "red") {
-                    alert(`Место ${placeName} занято сотрудником ${occupantText}. Выберите свободное.`);
+                    alert(`Место ${placeName} занято сотрудником ${occupantText}`);
                     return;
                 }
                 
-                // Свободно (зеленое)
+                // Зелёное — свободно
                 if (color === "green") {
-                    // Проверка: есть ли у пользователя своё постоянное место?
-                    const emp = employees.find(e => e.name === currentUser);
-                    if (emp?.place && emp.place !== placeName) {
-                        alert(`❌ У вас уже есть закреплённое место: ${emp.place}. Вы можете работать только на своём месте. Чтобы занять другое, обратитесь к администратору.`);
+                    // Проверка: есть ли у пользователя своё постоянное место? Если да — запрет бронировать другие
+                    if (hasOwnPlace && emp.place !== placeName) {
+                        alert(`❌ У вас уже есть закреплённое место: ${emp.place}. Вы можете бронировать только своё место. Чтобы занять другое, обратитесь к администратору.`);
                         return;
                     }
                     
                     if (confirm(`Забронировать место ${placeName} на ${formatDMY(dateObj)}?`)) {
-                        const alreadyBookedNow = bookings.find(b => b.date === dateYMD && b.place === placeName);
-                        if (alreadyBookedNow) {
+                        const alreadyBooked = bookings.find(b => b.date === dateYMD && b.place === placeName);
+                        if (alreadyBooked) {
                             alert("⚠️ Место только что заняли. Обновите страницу.");
                             return;
                         }
@@ -583,7 +560,7 @@
         });
     }
 
-    // ==================== АДМИН ПАНЕЛЬ (отпуска) ====================
+    // ==================== АДМИН ПАНЕЛЬ ====================
     function initAdminPanel() {
         if (currentUser !== "Админ") return;
         document.getElementById("adminPanel").innerHTML = `
@@ -725,4 +702,3 @@
 </script>
 </body>
 </html>
-```
