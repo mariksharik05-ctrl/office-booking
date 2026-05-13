@@ -69,7 +69,6 @@
             justify-content: center;
             align-items: center;
             box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            background: #e9e9ef;
         }
         .map-place:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
         .place-green { background: #34c759; color: white; }
@@ -77,7 +76,7 @@
         .place-blue { background: #007aff; color: white; box-shadow: 0 0 0 2px white, 0 0 0 4px #007aff; }
         .colleagues-list { background: #f2f2f7; padding: 16px; border-radius: 20px; margin-top: 20px; }
         .colleagues-list ul { list-style: none; padding: 0; margin: 0; }
-        .colleagues-list li { padding: 8px 0; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; gap: 8px; }
+        .colleagues-list li { padding: 8px 0; border-bottom: 1px solid #e0e0e0; }
         .admin-panel { background: #fff3e0; padding: 16px; border-radius: 20px; margin-bottom: 20px; border: 1px solid #ffd700; }
         .flex-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         .flex-row input, .flex-row select { padding: 8px 12px; border-radius: 12px; border: 1px solid #ccc; font-size: 14px; flex: 1; min-width: 120px; }
@@ -126,9 +125,8 @@
             </div>
             <div id="scheduleList" class="schedule-grid"></div>
             <div class="info-card" style="margin-top: 20px; font-size: 14px;">
-                💡 Кликайте по дням, чтобы переключить офис ↔ дом.<br>
-                📅 <strong>Будущие недели</strong> — можно менять в обе стороны.<br>
-                ⏳ <strong>Текущая неделя</strong> — можно только отказаться от офиса (офис → дом).
+                💡 <strong>Кликайте по любому дню</strong>, чтобы переключить статус между офисом и домом. <br>
+                ✅ Работает для всех дней (и прошлых, и будущих) без ограничений.
             </div>
         </div>
 
@@ -237,11 +235,6 @@
         return null;
     }
 
-    function hasFixedPlace(employeeName) {
-        const emp = employees.find(e => e.name === employeeName);
-        return emp && emp.place && emp.place.trim() !== "";
-    }
-
     function renderProfile() {
         const emp = employees.find(e => e.name === currentUser);
         const hasPlace = (emp?.place && emp.place.trim() !== "") ? `✅ ${emp.place}` : '❌ Нет закреплённого места';
@@ -268,15 +261,9 @@
         return officeDays.length ? officeDays.join(', ') : "все дни удалённо";
     }
 
+    // ПРОСТАЯ ФУНКЦИЯ: всегда можно переключить дом ↔ офис
     async function toggleOfficeStatus(dateYMD) {
         const dateObj = new Date(dateYMD);
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        
-        const weekStart = getWeekStart(today);
-        const nextWeekStart = new Date(weekStart);
-        nextWeekStart.setDate(weekStart.getDate() + 7);
-        
         const currentStatus = getUserStatus(currentUser, dateObj, dateYMD);
         
         if (currentStatus === "leave") {
@@ -284,67 +271,35 @@
             return;
         }
         
-        const isFuture = dateObj >= nextWeekStart;
-        const isCurrentWeek = dateObj >= weekStart && dateObj < nextWeekStart;
-        const isPast = dateObj < weekStart;
-        
-        if (isPast) {
-            alert("📅 Прошлые даты нельзя изменять.");
-            return;
-        }
-        
-        // Будущие недели: можно менять в обе стороны (дом ↔ офис)
-        if (isFuture) {
-            if (currentStatus === "office") {
-                // офис → дом: удаляем бронь или создаём override с null
-                const booking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
-                if (booking) {
-                    await supabase.from("bookings").delete().eq("id", booking.id);
-                } else {
-                    // Создаём override на дом
-                    await supabase.from("bookings").insert([{
-                        date: dateYMD,
-                        employee: currentUser,
-                        place: null
-                    }]);
-                }
-                alert("✅ Вы переключились на режим 'Дом'");
+        if (currentStatus === "office") {
+            // офис → дом: удаляем бронь или создаём override с null
+            const booking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
+            if (booking) {
+                await supabase.from("bookings").delete().eq("id", booking.id);
             } else {
-                // дом → офис: создаём бронь, место может быть null (потом забронирует на карте)
-                // Важно: не блокируем пользователей без места!
-                const existingBooking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
-                if (existingBooking) {
-                    // если была бронь на дом (place=null) — удаляем её
-                    await supabase.from("bookings").delete().eq("id", existingBooking.id);
-                }
-                // Создаём бронь без конкретного места (place = null означает "в офисе, но место не выбрано")
-                // Пользователь потом выберет место на карте
                 await supabase.from("bookings").insert([{
                     date: dateYMD,
                     employee: currentUser,
-                    place: null  // null означает "в офисе, место будет выбрано позже"
+                    place: null
                 }]);
-                alert("✅ Вы переключились на режим 'Офис'. Теперь выберите свободное место на карте.");
             }
-        }
-        // Текущая неделя: можно только офис → дом
-        else if (isCurrentWeek) {
-            if (currentStatus === "office") {
-                const booking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
-                if (booking) {
-                    await supabase.from("bookings").delete().eq("id", booking.id);
-                } else {
-                    await supabase.from("bookings").insert([{
-                        date: dateYMD,
-                        employee: currentUser,
-                        place: null
-                    }]);
-                }
-                alert("✅ Вы отказались от офиса в этот день.");
-            } else {
-                alert("⚠️ На текущей неделе нельзя добавить офис (можно только отказаться). Планируйте офис на будущие недели.");
-                return;
+            alert("✅ Переключено на ❌ ДОМ");
+        } else {
+            // дом → офис: удаляем старую бронь на дом и создаём офис
+            const existingBooking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
+            if (existingBooking) {
+                await supabase.from("bookings").delete().eq("id", existingBooking.id);
             }
+            
+            const emp = employees.find(e => e.name === currentUser);
+            const myPlace = (emp?.place && emp.place.trim() !== "") ? emp.place : null;
+            
+            await supabase.from("bookings").insert([{
+                date: dateYMD,
+                employee: currentUser,
+                place: myPlace  // если нет места — null, потом сможет выбрать на карте
+            }]);
+            alert("✅ Переключено на 🏢 ОФИС");
         }
         
         await loadData();
@@ -356,16 +311,12 @@
         if (!currentUser) return;
         const weekDates = getWeekDates(currentWeekStart);
         const days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        const weekStart = getWeekStart(today);
         
         let html = '';
         for (let i=0; i<7; i++) {
             const date = weekDates[i];
             const dateYMD = formatYMD(date);
             const status = getUserStatus(currentUser, date, dateYMD);
-            const isFutureWeek = date >= new Date(weekStart.getTime() + 7*24*60*60*1000);
             
             let statusText, statusClass;
             if (status === "leave") {
@@ -376,16 +327,10 @@
                 statusClass = status === "office" ? "status-office" : "status-home";
             }
             
-            let hint = "";
-            if (status !== "leave") {
-                if (isFutureWeek) hint = " ✨ можно менять";
-                else hint = " 🔒 только отказ от офиса";
-            }
-            
             html += `
                 <div class="schedule-day ${status}" data-date="${dateYMD}" style="${status === 'leave' ? 'cursor: not-allowed;' : ''}">
                     <span class="day-name">${days[i]} <small>(${formatDMY(date)})</small></span>
-                    <span class="day-status ${statusClass}">${statusText}${hint}</span>
+                    <span class="day-status ${statusClass}">${statusText}</span>
                 </div>
             `;
         }
@@ -395,8 +340,7 @@
         document.querySelectorAll(".schedule-day").forEach(el => {
             el.onclick = async () => {
                 const dateYMD = el.dataset.date;
-                const dateObj = new Date(dateYMD);
-                const status = getUserStatus(currentUser, dateObj, dateYMD);
+                const status = getUserStatus(currentUser, new Date(dateYMD), dateYMD);
                 if (status === "leave") {
                     alert("В отпуске нельзя изменить статус");
                     return;
@@ -419,7 +363,6 @@
         
         const placeOccupant = new Map();
         
-        // Сначала обрабатываем всех сотрудников
         for (const emp of employees) {
             if (emp.name === "Админ") continue;
             const inLeave = isOnLeave(emp.name, dateYMD);
@@ -436,7 +379,6 @@
             }
         }
         
-        // Брони с конкретным местом имеют приоритет
         for (const book of bookings) {
             if (book.date === dateYMD && book.place !== null) {
                 const bookOwner = book.employee;
@@ -446,7 +388,6 @@
             }
         }
         
-        // Группировка мест по рядам
         const rows = new Map();
         for (const place of places) {
             const y = place.pos_y;
@@ -493,21 +434,20 @@
         }
         document.getElementById("officeMap").innerHTML = html;
         
-        // Проверяем, есть ли у текущего пользователя статус "офис" в этот день
         const myStatus = getUserStatus(currentUser, dateObj, dateYMD);
-        const iAmInOffice = myStatus === "office";
-        
-        let colleaguesHtml = '';
-        if (iAmInOffice) {
-            colleaguesHtml = `<h4>👥 В офисе на Искре (${formatDMY(dateObj)})</h4>
-            <ul>${colleaguesInOffice.size ? Array.from(colleaguesInOffice).map(c => `<li>${c}</li>`).join('') : '<li>✨ Никого из коллег</li>'}</ul>`;
+        if (myStatus === "office") {
+            document.getElementById("colleaguesOnMap").innerHTML = `
+                <h4>👥 В офисе на Искре (${formatDMY(dateObj)})</h4>
+                <ul>${colleaguesInOffice.size ? Array.from(colleaguesInOffice).map(c => `<li>${c}</li>`).join('') : '<li>✨ Никого из коллег</li>'}</ul>
+            `;
         } else {
-            colleaguesHtml = `<h4>👥 В офисе на Искре (${formatDMY(dateObj)})</h4>
-            <p style="color:#666; font-size:14px;">Вы сегодня不在 офисе, отметьте "Офис" в расписании, чтобы видеть коллег и бронировать место.</p>`;
+            document.getElementById("colleaguesOnMap").innerHTML = `
+                <h4>👥 В офисе на Искре (${formatDMY(dateObj)})</h4>
+                <p style="color:#666;">Вы сегодня не в офисе. Чтобы забронировать место, сначала переключите статус в расписании на 🏢 Офис.</p>
+            `;
         }
-        document.getElementById("colleaguesOnMap").innerHTML = colleaguesHtml;
         
-        // Клики по местам
+        // Клики по местам для бронирования
         document.querySelectorAll(".map-place").forEach(el => {
             el.onclick = async () => {
                 const placeName = el.dataset.place;
@@ -516,7 +456,7 @@
                 
                 const myStatusNow = getUserStatus(currentUser, dateObj, dateYMD);
                 if (myStatusNow !== "office") {
-                    alert("Чтобы забронировать место, сначала отметьте этот день как 'Офис' в расписании на будущую неделю.");
+                    alert("Чтобы забронировать место, сначала отметьте этот день как 'Офис' в расписании.");
                     return;
                 }
                 
@@ -530,12 +470,12 @@
                             if (myBooking) {
                                 await supabase.from("bookings").delete().eq("id", myBooking.id);
                                 alert(`✅ Вы освободили место ${placeName}`);
+                                await loadData();
+                                await renderMap();
+                                await renderSchedule();
                             } else {
                                 alert("У вас нет активной брони на это место");
                             }
-                            await loadData();
-                            await renderMap();
-                            await renderSchedule();
                         }
                     }
                     return;
@@ -559,7 +499,6 @@
                             return;
                         }
                         
-                        // Удаляем старую бронь (если была без места)
                         const myOld = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                         if (myOld) await supabase.from("bookings").delete().eq("id", myOld.id);
                         
