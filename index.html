@@ -85,7 +85,6 @@
         .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; font-size: 13px; background: #f9f9f9; padding: 12px; border-radius: 32px; justify-content: center; }
         .legend span { display: flex; align-items: center; gap: 6px; }
         .legend-dot { width: 14px; height: 14px; border-radius: 6px; display: inline-block; }
-        .my-place-badge { background: #007aff20; padding: 10px; border-radius: 16px; margin: 10px 0; font-size: 14px; border-left: 3px solid #007aff; }
         @media (max-width: 700px) {
             .map-place { width: 90px; min-width: 75px; height: 70px; font-size: 11px; }
             .day-name { font-size: 14px; width: 130px; }
@@ -127,7 +126,9 @@
             </div>
             <div id="scheduleList" class="schedule-grid"></div>
             <div class="info-card" style="margin-top: 20px; font-size: 14px;">
-                💡 Кликайте по дням, чтобы переключить офис ↔ дом.
+                💡 Кликайте по дням, чтобы переключить офис ↔ дом.<br>
+                📅 <strong>Будущие недели</strong> — можно менять в обе стороны.<br>
+                ⏳ <strong>Текущая неделя</strong> — можно только отказаться от офиса (офис → дом).
             </div>
         </div>
 
@@ -236,7 +237,6 @@
         return null;
     }
 
-    // Функция проверки: есть ли у сотрудника закреплённое место (не пустое)
     function hasFixedPlace(employeeName) {
         const emp = employees.find(e => e.name === employeeName);
         return emp && emp.place && emp.place.trim() !== "";
@@ -286,9 +286,17 @@
         
         const isFuture = dateObj >= nextWeekStart;
         const isCurrentWeek = dateObj >= weekStart && dateObj < nextWeekStart;
+        const isPast = dateObj < weekStart;
         
+        if (isPast) {
+            alert("📅 Прошлые даты нельзя изменять.");
+            return;
+        }
+        
+        // Будущие недели: можно менять в обе стороны (дом ↔ офис)
         if (isFuture) {
             if (currentStatus === "office") {
+                // офис → дом
                 const booking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                 if (booking) {
                     await supabase.from("bookings").delete().eq("id", booking.id);
@@ -300,6 +308,7 @@
                     }]);
                 }
             } else {
+                // дом → офис
                 const emp = employees.find(e => e.name === currentUser);
                 const targetPlace = (emp?.place && emp.place.trim() !== "") ? emp.place : null;
                 await supabase.from("bookings").insert([{
@@ -309,6 +318,7 @@
                 }]);
             }
         }
+        // Текущая неделя: можно только офис → дом (нельзя добавить офис)
         else if (isCurrentWeek) {
             if (currentStatus === "office") {
                 const booking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
@@ -321,13 +331,11 @@
                         place: null
                     }]);
                 }
+                alert("✅ Вы отказались от офиса в этот день.");
             } else {
-                alert("⚠️ На текущей неделе можно только отказаться от офиса (офис -> дом).");
+                alert("⚠️ На текущей неделе нельзя добавить офис (можно только отказаться). Планируйте офис на будущие недели.");
                 return;
             }
-        } else {
-            alert("Прошлые недели нельзя изменять");
-            return;
         }
         
         await loadData();
@@ -339,12 +347,16 @@
         if (!currentUser) return;
         const weekDates = getWeekDates(currentWeekStart);
         const days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const weekStart = getWeekStart(today);
         
         let html = '';
         for (let i=0; i<7; i++) {
             const date = weekDates[i];
             const dateYMD = formatYMD(date);
             const status = getUserStatus(currentUser, date, dateYMD);
+            const isFutureWeek = date >= new Date(weekStart.getTime() + 7*24*60*60*1000);
             
             let statusText, statusClass;
             if (status === "leave") {
@@ -355,10 +367,16 @@
                 statusClass = status === "office" ? "status-office" : "status-home";
             }
             
+            let hint = "";
+            if (status !== "leave") {
+                if (isFutureWeek) hint = " ✨ можно менять";
+                else hint = " 🔒 только отказ от офиса";
+            }
+            
             html += `
                 <div class="schedule-day ${status}" data-date="${dateYMD}" style="${status === 'leave' ? 'cursor: not-allowed;' : ''}">
                     <span class="day-name">${days[i]} <small>(${formatDMY(date)})</small></span>
-                    <span class="day-status ${statusClass}">${statusText}</span>
+                    <span class="day-status ${statusClass}">${statusText}${hint}</span>
                 </div>
             `;
         }
@@ -494,8 +512,6 @@
                             await renderMap();
                             await renderSchedule();
                         }
-                    } else {
-                        alert(`Место ${placeName} — ваше постоянное, но сейчас занято кем-то другим.`);
                     }
                     return;
                 }
@@ -506,9 +522,8 @@
                 }
                 
                 if (color === "green") {
-                    // Только если у пользователя ЕСТЬ своё место — запрещаем бронировать чужие
                     if (hasOwnPlace && emp.place !== placeName) {
-                        alert(`❌ У вас уже есть закреплённое место: ${emp.place}. Вы можете бронировать только своё место. Чтобы занять другое, обратитесь к администратору.`);
+                        alert(`❌ У вас уже есть закреплённое место: ${emp.place}. Вы можете бронировать только своё место.`);
                         return;
                     }
                     
@@ -531,7 +546,6 @@
                         await renderMap();
                         await renderSchedule();
                     }
-                    return;
                 }
             };
         });
@@ -541,7 +555,7 @@
         if (currentUser !== "Админ") return;
         document.getElementById("adminPanel").innerHTML = `
             <div class="admin-panel">
-                <h4>🔧 Управление отпусками (на время отпуска место сотрудника становится свободным)</h4>
+                <h4>🔧 Управление отпусками</h4>
                 <div class="flex-row">
                     <select id="leaveEmployee"><option value="">Сотрудник</option></select>
                     <input type="date" id="leaveStart">
