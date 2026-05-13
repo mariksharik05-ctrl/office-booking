@@ -413,10 +413,11 @@
             if (emp.name === "Админ") continue;
             const status = getUserStatus(emp.name, dateObj, dateYMD);
             if (status === "office" && !isOnLeave(emp.name, dateYMD)) {
-                peopleInOffice.sort((a, b) => a.localeCompare(b, 'ru'));
+                peopleInOffice.push(emp.name);
+                
             }
         }
-        
+        peopleInOffice.sort((a, b) => a.localeCompare(b, 'ru'));
         // Группировка мест
         const rows = new Map();
         for (const place of places) {
