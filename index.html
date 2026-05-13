@@ -22,7 +22,7 @@
         .info-card { background: #f2f2f7; padding: 16px; border-radius: 16px; margin: 16px 0; }
         
         .week-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-        .week-nav { background: #f2f2f7; border: none; padding: 8px 16px; border-radius: 24px; cursor: pointer; font-size: 14px; font-weight: 500; }
+        .week-nav { color: #000; background: #f2f2f7; border: none; padding: 8px 16px; border-radius: 24px; cursor: pointer; font-size: 14px; font-weight: 500; }
         .schedule-grid { display: flex; flex-direction: column; gap: 12px; }
         .schedule-day { display: flex; align-items: center; justify-content: space-between; background: #f9f9f9; border-radius: 16px; padding: 12px 16px; cursor: pointer; transition: 0.2s; border-left: 4px solid transparent; }
         .schedule-day:hover { transform: scale(1.01); background: #f0f0f0; }
@@ -112,10 +112,14 @@
     </div>
 
     <div id="mainApp" style="display: none;">
-        <div class="tabs">
+        <div class="tabs" style="align-items:center;">
             <button class="tab-btn active" data-tab="profile">👤 Профиль</button>
             <button class="tab-btn" data-tab="schedule">📅 Расписание</button>
             <button class="tab-btn" data-tab="map">🗺️ Карта мест</button>
+            <button id="logoutBtnTop"
+                style="margin-left:auto; width:auto; background:#ff3b30; color:white; border:none; padding:10px 16px; border-radius:20px; cursor:pointer; font-size:14px;">
+                🚪 Выйти
+            </button>
         </div>
 
         <div id="profileTab" class="tab-content active">
@@ -138,7 +142,6 @@
         </div>
 
         <div id="mapTab" class="tab-content">
-            <h3>🗺️ Карта мест на Искре</h3>
             <input type="date" id="mapDatePicker" style="margin-bottom: 16px; padding: 10px; border-radius: 14px; border: 1px solid #ccc; width: 100%; max-width: 260px;">
             <div class="legend">
                 <span><span class="legend-dot" style="background:#34c759;"></span> Свободно</span>
@@ -148,6 +151,14 @@
             
             <div class="map-wrapper">
                 <div id="officeMap" class="map-grid"></div>
+            </div>
+            <div class="info-card" style="margin-top:20px; font-size:14px;">
+                💡 <strong>Как пользоваться:</strong><br>
+                • Нажмите на <strong>свободное место</strong>, чтобы забронировать<br>
+                • Можно занять <strong>любое место</strong>, даже если у вас есть своё<br>
+                • При пересадке ваше место автоматически освобождается<br>
+                • Нажмите на <strong>своё место</strong>, чтобы освободить его<br>
+                • Красные места заняты другими сотрудниками
             </div>
             
             <div id="colleaguesOnMap" class="colleagues-list"></div>
@@ -327,13 +338,16 @@
                 statusText = "🏖️ Отпуск";
                 statusClass = "status-leave";
             } else {
-                statusText = status === "office" ? "🏢 В офисе (Искра)" : "🏠 Дом / Воздвиженка";
+                statusText = status === "office" ? "🏢 Искра" : "🏠 Дом / Воздвиженка";
                 statusClass = status === "office" ? "status-office" : "status-home";
             }
             
             html += `
                 <div class="schedule-day ${status}" data-date="${dateYMD}" style="${status === 'leave' ? 'cursor: not-allowed;' : ''}">
-                    <span class="day-name">${days[i]} <small>(${formatDMY(date)})</small></span>
+                    <span class="day-name">
+                        ${days[i]}<br>
+                        <small style="display:block; font-weight:400; margin-top:4px;">${formatDMY(date)}</small>
+                    </span>
                     <span class="day-status ${statusClass}">${statusText}</span>
                 </div>
             `;
@@ -400,7 +414,7 @@
             if (emp.name === "Админ") continue;
             const status = getUserStatus(emp.name, dateObj, dateYMD);
             if (status === "office" && !isOnLeave(emp.name, dateYMD)) {
-                peopleInOffice.push(emp.name);
+                peopleInOffice.sort((a, b) => a.localeCompare(b, 'ru'));
             }
         }
         
@@ -435,8 +449,16 @@
                     }
                 } else {
                     if (isMyPlace) {
-                        color = "blue";
-                        occupantName = "Ваше место";
+                        // если пользователь НЕ сидит на своем месте → оно свободное (зелёное)
+                        const myActualPlace = getOccupiedPlace(currentUser, dateYMD);
+                    
+                        if (myActualPlace !== place.name) {
+                            color = "green";
+                            occupantName = "Ваше место";
+                        } else {
+                            color = "blue";
+                            occupantName = currentUser;
+                        }
                     }
                 }
                 
@@ -608,7 +630,10 @@
         const select = document.getElementById("employeeSelect");
         select.style.display = "block";
         select.innerHTML = '<option value="">Выберите себя</option>' + 
-            employees.map(e => `<option value="${e.name}">${e.name}</option>`).join('');
+            employees
+                .slice()
+                .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+                .map(e => `<option value="${e.name}">${e.name}</option>`)
         document.getElementById("loginBtn").style.display = "block";
         document.getElementById("loginBtn").onclick = () => {
             const name = select.value;
@@ -646,7 +671,11 @@
             localStorage.removeItem("currentUser"); 
             location.reload(); 
         });
-        
+        document.getElementById("logoutBtnTop")?.addEventListener("click", () => {
+            localStorage.removeItem("currentUser");
+            location.reload();
+        });
+                
         document.querySelectorAll(".tab-btn").forEach(btn => {
             btn.onclick = () => {
                 document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
