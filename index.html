@@ -35,12 +35,11 @@
         .status-home { background: #34c759; color: white; }
         .status-leave { background: #ff9500; color: white; }
         
-        /* НОВЫЙ СТИЛЬ КАРТЫ — центрирование с выравниванием по правому краю */
         .map-wrapper {
             display: flex;
             justify-content: center;
             width: 100%;
-            margin-top: 32px;  /* Свободное место сверху */
+            margin-top: 32px;
         }
         .map-grid {
             display: flex;
@@ -51,7 +50,7 @@
         }
         .map-row {
             display: flex;
-            justify-content: flex-end;  /* Прижимаем ячейки к правому краю */
+            justify-content: flex-end;
             gap: 14px;
             flex-wrap: wrap;
         }
@@ -143,11 +142,10 @@
             <input type="date" id="mapDatePicker" style="margin-bottom: 16px; padding: 10px; border-radius: 14px; border: 1px solid #ccc; width: 100%; max-width: 260px;">
             <div class="legend">
                 <span><span class="legend-dot" style="background:#34c759;"></span> Свободно</span>
-                <span><span class="legend-dot" style="background:#ff3b30;"></span> Занято другим</span>
-                <span><span class="legend-dot" style="background:#007aff;"></span> Моё место</span>
+                <span><span class="legend-dot" style="background:#ff3b30;"></span> Занято</span>
+                <span><span class="legend-dot" style="background:#007aff;"></span> Ваше место</span>
             </div>
             
-            <!-- НОВАЯ ОБЁРТКА ДЛЯ КАРТЫ -->
             <div class="map-wrapper">
                 <div id="officeMap" class="map-grid"></div>
             </div>
@@ -236,6 +234,7 @@
         return "home";
     }
 
+    // Получаем место, которое занимает сотрудник (если в офисе и есть бронь или закреплённое место)
     function getOccupiedPlace(employeeName, dateYMD) {
         const booking = bookings.find(b => b.date === dateYMD && b.employee === employeeName);
         if (booking && booking.place !== null && booking.place !== "office_mode") return booking.place;
@@ -366,6 +365,7 @@
         const myFixedPlaceRaw = employees.find(e => e.name === currentUser)?.place || "";
         const myFixedPlace = (myFixedPlaceRaw && myFixedPlaceRaw.trim() !== "") ? myFixedPlaceRaw : null;
         
+        // Определяем, кто какое место занимает (только те, кто в офисе)
         const placeOccupant = new Map();
         
         for (const emp of employees) {
@@ -384,6 +384,7 @@
             }
         }
         
+        // Брони с конкретным местом имеют приоритет
         for (const book of bookings) {
             if (book.date === dateYMD && book.place !== null && book.place !== "office_mode") {
                 const bookOwner = book.employee;
@@ -393,6 +394,17 @@
             }
         }
         
+        // Собираем всех, кто в офисе (для списка)
+        const peopleInOffice = [];
+        for (const emp of employees) {
+            if (emp.name === "Админ") continue;
+            const status = getUserStatus(emp.name, dateObj, dateYMD);
+            if (status === "office" && !isOnLeave(emp.name, dateYMD)) {
+                peopleInOffice.push(emp.name);
+            }
+        }
+        
+        // Группировка мест
         const rows = new Map();
         for (const place of places) {
             const y = place.pos_y;
@@ -400,8 +412,6 @@
             rows.get(y).push(place);
         }
         const sortedYs = Array.from(rows.keys()).sort((a, b) => b - a);
-        
-        const colleaguesInOffice = new Set();
         
         let html = '';
         for (const y of sortedYs) {
@@ -422,7 +432,6 @@
                     } else {
                         color = "red";
                         occupantName = occupant;
-                        colleaguesInOffice.add(occupant);
                     }
                 } else {
                     if (isMyPlace) {
@@ -439,73 +448,75 @@
         }
         document.getElementById("officeMap").innerHTML = html;
         
-        const myStatus = getUserStatus(currentUser, dateObj, dateYMD);
-        if (myStatus === "office") {
-            document.getElementById("colleaguesOnMap").innerHTML = `
-                <h4>👥 В офисе на Искре (${formatDMY(dateObj)})</h4>
-                <ul>${colleaguesInOffice.size ? Array.from(colleaguesInOffice).map(c => `<li>${c}</li>`).join('') : '<li>✨ Никого из коллег</li>'}</ul>
-            `;
-        } else {
-            document.getElementById("colleaguesOnMap").innerHTML = `
-                <h4>👥 В офисе на Искре (${formatDMY(dateObj)})</h4>
-                <p style="color:#666;">Вы сегодня не в офисе. Чтобы забронировать место, сначала переключите статус в расписании на 🏢 Офис.</p>
-            `;
-        }
+        // ВСЕГДА показываем список тех, кто в офисе (независимо от статуса текущего пользователя)
+        document.getElementById("colleaguesOnMap").innerHTML = `
+            <h4>👥 В офисе на Искре (${formatDMY(dateObj)})</h4>
+            <ul>${peopleInOffice.length ? peopleInOffice.map(c => `<li>${c}</li>`).join('') : '<li>✨ Никого нет</li>'}</ul>
+        `;
         
+        // Клики по местам — теперь можно бронировать любые свободные места
         document.querySelectorAll(".map-place").forEach(el => {
             el.onclick = async () => {
                 const placeName = el.dataset.place;
                 const color = el.dataset.color;
                 const occupantText = el.querySelector("span")?.innerText || "";
                 
-                const myStatusNow = getUserStatus(currentUser, dateObj, dateYMD);
-                if (myStatusNow !== "office") {
-                    alert("Чтобы забронировать место, сначала отметьте этот день как 'Офис' в расписании.");
-                    return;
-                }
-                
-                const emp = employees.find(e => e.name === currentUser);
-                const hasOwnPlace = (emp?.place && emp.place.trim() !== "");
-                
-                if (color === "blue") {
-                    if (occupantText === currentUser || occupantText === "Ваше место") {
-                        if (confirm(`Освободить место ${placeName} на ${formatDMY(dateObj)}?`)) {
-                            const myBooking = bookings.find(b => b.date === dateYMD && b.employee === currentUser && b.place === placeName);
-                            if (myBooking) {
-                                await supabase.from("bookings").delete().eq("id", myBooking.id);
-                                alert(`✅ Вы освободили место ${placeName}`);
-                                await loadData();
-                                await renderMap();
-                                await renderSchedule();
-                            } else {
-                                alert("У вас нет активной брони на это место");
+                // Если место синее и принадлежит текущему пользователю — можно освободить
+                if (color === "blue" && (occupantText === currentUser || occupantText === "Ваше место")) {
+                    if (confirm(`Освободить место ${placeName} на ${formatDMY(dateObj)}?`)) {
+                        const myBooking = bookings.find(b => b.date === dateYMD && b.employee === currentUser && b.place === placeName);
+                        if (myBooking) {
+                            await supabase.from("bookings").delete().eq("id", myBooking.id);
+                            alert(`✅ Вы освободили место ${placeName}`);
+                        } else {
+                            // Если это было закреплённое место без брони — создаём бронь на дом
+                            const existingOverride = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
+                            if (existingOverride) {
+                                await supabase.from("bookings").delete().eq("id", existingOverride.id);
                             }
+                            await supabase.from("bookings").insert([{
+                                date: dateYMD,
+                                employee: currentUser,
+                                place: null
+                            }]);
+                            alert(`✅ Вы освободили место ${placeName}`);
                         }
+                        await loadData();
+                        await renderMap();
+                        await renderSchedule();
                     }
                     return;
                 }
                 
+                // Если место красное — занято другим
                 if (color === "red") {
                     alert(`Место ${placeName} занято сотрудником ${occupantText}`);
                     return;
                 }
                 
-                if (color === "green") {
+                // Если место зелёное или синее (но не моё) — можно забронировать (с подтверждением)
+                if (color === "green" || (color === "blue" && occupantText !== currentUser)) {
+                    // Предупреждение, если у пользователя есть своё место, но он бронирует чужое
+                    const emp = employees.find(e => e.name === currentUser);
+                    const hasOwnPlace = (emp?.place && emp.place.trim() !== "");
+                    let confirmMessage = `Забронировать место ${placeName} на ${formatDMY(dateObj)}?`;
                     if (hasOwnPlace && emp.place !== placeName) {
-                        alert(`❌ У вас уже есть закреплённое место: ${emp.place}. Вы можете бронировать только своё место.`);
-                        return;
+                        confirmMessage = `⚠️ У вас есть закреплённое место: ${emp.place}. Вы уверены, что хотите забронировать ${placeName}? (ваше место освободится)`;
                     }
                     
-                    if (confirm(`Забронировать место ${placeName} на ${formatDMY(dateObj)}?`)) {
+                    if (confirm(confirmMessage)) {
+                        // Проверяем, не заняли ли место только что
                         const alreadyBooked = bookings.find(b => b.date === dateYMD && b.place === placeName);
                         if (alreadyBooked) {
                             alert("⚠️ Место только что заняли. Обновите страницу.");
                             return;
                         }
                         
+                        // Удаляем старую бронь пользователя (если была)
                         const myOld = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
                         if (myOld) await supabase.from("bookings").delete().eq("id", myOld.id);
                         
+                        // Создаём новую бронь
                         await supabase.from("bookings").insert([{ 
                             date: dateYMD, 
                             employee: currentUser, 
@@ -516,6 +527,7 @@
                         await renderMap();
                         await renderSchedule();
                     }
+                    return;
                 }
             };
         });
