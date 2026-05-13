@@ -35,28 +35,29 @@
         .status-home { background: #34c759; color: white; }
         .status-leave { background: #ff9500; color: white; }
         
+        /* НОВЫЙ СТИЛЬ КАРТЫ — центрирование с выравниванием по правому краю */
+        .map-wrapper {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin-top: 32px;  /* Свободное место сверху */
+        }
         .map-grid {
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            margin-top: 20px;
-            width: 100%;
-            max-width: 750px;
-            margin-left: auto;
-            margin-right: auto;
-            overflow-x: auto;
+            gap: 14px;
+            width: auto;
+            max-width: 850px;
         }
         .map-row {
             display: flex;
-            justify-content: flex-end;
-            gap: 16px;
-            width: 100%;
+            justify-content: flex-end;  /* Прижимаем ячейки к правому краю */
+            gap: 14px;
             flex-wrap: wrap;
-            justify-content: center;
         }
         .map-place {
             width: 130px;
-            min-width: 100px;
+            min-width: 110px;
             height: 85px;
             padding: 10px;
             border-radius: 18px;
@@ -74,20 +75,27 @@
         .place-green { background: #34c759; color: white; }
         .place-red { background: #ff3b30; color: white; }
         .place-blue { background: #007aff; color: white; box-shadow: 0 0 0 2px white, 0 0 0 4px #007aff; }
-        .colleagues-list { background: #f2f2f7; padding: 16px; border-radius: 20px; margin-top: 20px; }
+        
+        .colleagues-list { background: #f2f2f7; padding: 16px; border-radius: 20px; margin-top: 24px; }
         .colleagues-list ul { list-style: none; padding: 0; margin: 0; }
         .colleagues-list li { padding: 8px 0; border-bottom: 1px solid #e0e0e0; }
         .admin-panel { background: #fff3e0; padding: 16px; border-radius: 20px; margin-bottom: 20px; border: 1px solid #ffd700; }
         .flex-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         .flex-row input, .flex-row select { padding: 8px 12px; border-radius: 12px; border: 1px solid #ccc; font-size: 14px; flex: 1; min-width: 120px; }
         .loader { text-align: center; padding: 40px; color: #666; }
-        .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; font-size: 13px; background: #f9f9f9; padding: 12px; border-radius: 32px; justify-content: center; }
+        .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; font-size: 13px; background: #f9f9f9; padding: 12px; border-radius: 32px; justify-content: center; }
         .legend span { display: flex; align-items: center; gap: 6px; }
         .legend-dot { width: 14px; height: 14px; border-radius: 6px; display: inline-block; }
-        @media (max-width: 700px) {
-            .map-place { width: 90px; min-width: 75px; height: 70px; font-size: 11px; }
+        
+        @media (max-width: 750px) {
+            .map-place { width: 95px; min-width: 85px; height: 75px; font-size: 11px; }
+            .map-row { gap: 10px; }
             .day-name { font-size: 14px; width: 130px; }
             .tab-btn { font-size: 11px; }
+        }
+        @media (max-width: 550px) {
+            .map-place { width: 75px; min-width: 70px; height: 65px; font-size: 10px; }
+            .map-row { gap: 8px; }
         }
     </style>
 </head>
@@ -138,7 +146,12 @@
                 <span><span class="legend-dot" style="background:#ff3b30;"></span> Занято другим</span>
                 <span><span class="legend-dot" style="background:#007aff;"></span> Моё место</span>
             </div>
-            <div id="officeMap" class="map-grid"></div>
+            
+            <!-- НОВАЯ ОБЁРТКА ДЛЯ КАРТЫ -->
+            <div class="map-wrapper">
+                <div id="officeMap" class="map-grid"></div>
+            </div>
+            
             <div id="colleaguesOnMap" class="colleagues-list"></div>
         </div>
     </div>
@@ -206,21 +219,15 @@
         return leaves.some(l => l.employee === employeeName && dateYMD >= l.start_date && dateYMD <= l.end_date);
     }
 
-    // Возвращает статус: "office", "home" или "leave"
     function getUserStatus(employeeName, date, dateYMD) {
         if (isOnLeave(employeeName, dateYMD)) return "leave";
         
-        // Смотрим, есть ли переопределение (bookings)
         const booking = bookings.find(b => b.date === dateYMD && b.employee === employeeName);
         if (booking) {
-            // Если есть запись в bookings, значит пользователь явно выбрал статус
-            // place === "office_mode" или любое конкретное место означает офис
-            // place === null или "home_mode" означает дом
             if (booking.place === null) return "home";
-            return "office";  // любое не-null значение (включая "office_mode" или конкретное место) = офис
+            return "office";
         }
         
-        // Нет переопределения — смотрим базовое расписание
         const sched = schedules.find(s => s.employee === employeeName);
         if (sched) {
             const dayName = getDayName(date);
@@ -267,7 +274,6 @@
         return officeDays.length ? officeDays.join(', ') : "все дни удалённо";
     }
 
-    // ПРОСТОЕ ПЕРЕКЛЮЧЕНИЕ: всегда работает
     async function toggleOfficeStatus(dateYMD) {
         const dateObj = new Date(dateYMD);
         const currentStatus = getUserStatus(currentUser, dateObj, dateYMD);
@@ -277,16 +283,12 @@
             return;
         }
         
-        // Находим существующую бронь (переопределение)
         const existingBooking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
         
         if (currentStatus === "office") {
-            // Сейчас офис -> переключаем на дом
             if (existingBooking) {
-                // Удаляем существующую бронь
                 await supabase.from("bookings").delete().eq("id", existingBooking.id);
             }
-            // Создаём переопределение на дом (place = null)
             await supabase.from("bookings").insert([{
                 date: dateYMD,
                 employee: currentUser,
@@ -294,11 +296,9 @@
             }]);
             alert("✅ Переключено на 🏠 ДОМ");
         } else {
-            // Сейчас дом -> переключаем на офис
             if (existingBooking) {
                 await supabase.from("bookings").delete().eq("id", existingBooking.id);
             }
-            // Создаём переопределение на офис (place = "office_mode")
             await supabase.from("bookings").insert([{
                 date: dateYMD,
                 employee: currentUser,
@@ -452,7 +452,6 @@
             `;
         }
         
-        // Клики по местам
         document.querySelectorAll(".map-place").forEach(el => {
             el.onclick = async () => {
                 const placeName = el.dataset.place;
