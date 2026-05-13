@@ -125,8 +125,8 @@
             </div>
             <div id="scheduleList" class="schedule-grid"></div>
             <div class="info-card" style="margin-top: 20px; font-size: 14px;">
-                💡 <strong>Кликайте по любому дню</strong>, чтобы переключить статус между офисом и домом. <br>
-                ✅ Работает для всех дней (и прошлых, и будущих) без ограничений.
+                💡 <strong>Кликайте по любому дню</strong>, чтобы переключить статус между офисом и домом.<br>
+                ✅ Работает для всех дней без ограничений.
             </div>
         </div>
 
@@ -206,15 +206,21 @@
         return leaves.some(l => l.employee === employeeName && dateYMD >= l.start_date && dateYMD <= l.end_date);
     }
 
+    // Возвращает статус: "office", "home" или "leave"
     function getUserStatus(employeeName, date, dateYMD) {
         if (isOnLeave(employeeName, dateYMD)) return "leave";
         
+        // Смотрим, есть ли переопределение (bookings)
         const booking = bookings.find(b => b.date === dateYMD && b.employee === employeeName);
         if (booking) {
+            // Если есть запись в bookings, значит пользователь явно выбрал статус
+            // place === "office_mode" или любое конкретное место означает офис
+            // place === null или "home_mode" означает дом
             if (booking.place === null) return "home";
-            return "office";
+            return "office";  // любое не-null значение (включая "office_mode" или конкретное место) = офис
         }
         
+        // Нет переопределения — смотрим базовое расписание
         const sched = schedules.find(s => s.employee === employeeName);
         if (sched) {
             const dayName = getDayName(date);
@@ -225,7 +231,7 @@
 
     function getOccupiedPlace(employeeName, dateYMD) {
         const booking = bookings.find(b => b.date === dateYMD && b.employee === employeeName);
-        if (booking && booking.place !== null) return booking.place;
+        if (booking && booking.place !== null && booking.place !== "office_mode") return booking.place;
         
         if (!isOnLeave(employeeName, dateYMD)) {
             const emp = employees.find(e => e.name === employeeName);
@@ -261,7 +267,7 @@
         return officeDays.length ? officeDays.join(', ') : "все дни удалённо";
     }
 
-    // ПРОСТАЯ ФУНКЦИЯ: всегда можно переключить дом ↔ офис
+    // ПРОСТОЕ ПЕРЕКЛЮЧЕНИЕ: всегда работает
     async function toggleOfficeStatus(dateYMD) {
         const dateObj = new Date(dateYMD);
         const currentStatus = getUserStatus(currentUser, dateObj, dateYMD);
@@ -271,33 +277,32 @@
             return;
         }
         
+        // Находим существующую бронь (переопределение)
+        const existingBooking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
+        
         if (currentStatus === "office") {
-            // офис → дом: удаляем бронь или создаём override с null
-            const booking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
-            if (booking) {
-                await supabase.from("bookings").delete().eq("id", booking.id);
-            } else {
-                await supabase.from("bookings").insert([{
-                    date: dateYMD,
-                    employee: currentUser,
-                    place: null
-                }]);
-            }
-            alert("✅ Переключено на ❌ ДОМ");
-        } else {
-            // дом → офис: удаляем старую бронь на дом и создаём офис
-            const existingBooking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
+            // Сейчас офис -> переключаем на дом
             if (existingBooking) {
+                // Удаляем существующую бронь
                 await supabase.from("bookings").delete().eq("id", existingBooking.id);
             }
-            
-            const emp = employees.find(e => e.name === currentUser);
-            const myPlace = (emp?.place && emp.place.trim() !== "") ? emp.place : null;
-            
+            // Создаём переопределение на дом (place = null)
             await supabase.from("bookings").insert([{
                 date: dateYMD,
                 employee: currentUser,
-                place: myPlace  // если нет места — null, потом сможет выбрать на карте
+                place: null
+            }]);
+            alert("✅ Переключено на 🏠 ДОМ");
+        } else {
+            // Сейчас дом -> переключаем на офис
+            if (existingBooking) {
+                await supabase.from("bookings").delete().eq("id", existingBooking.id);
+            }
+            // Создаём переопределение на офис (place = "office_mode")
+            await supabase.from("bookings").insert([{
+                date: dateYMD,
+                employee: currentUser,
+                place: "office_mode"
             }]);
             alert("✅ Переключено на 🏢 ОФИС");
         }
@@ -380,7 +385,7 @@
         }
         
         for (const book of bookings) {
-            if (book.date === dateYMD && book.place !== null) {
+            if (book.date === dateYMD && book.place !== null && book.place !== "office_mode") {
                 const bookOwner = book.employee;
                 if (!isOnLeave(bookOwner, dateYMD)) {
                     placeOccupant.set(book.place, bookOwner);
@@ -447,7 +452,7 @@
             `;
         }
         
-        // Клики по местам для бронирования
+        // Клики по местам
         document.querySelectorAll(".map-place").forEach(el => {
             el.onclick = async () => {
                 const placeName = el.dataset.place;
