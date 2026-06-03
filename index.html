@@ -200,7 +200,7 @@
                 <rect x="100" y="138" width="42" height="36" rx="6" fill="#76787A"/>
             </svg>
         </div>
-        <div class="login-title">Искра</div>
+        <div class="login-title">Обсидиан</div>
         <div class="login-sub">Система бронирования мест</div>
         <select id="employeeSelect"><option value="">Выберите себя...</option></select>
         <button class="btn btn-primary" id="loginBtn">Войти в систему</button>
@@ -216,7 +216,7 @@
                 <rect x="162" y="134" width="34" height="54" rx="4" fill="#2F444E"/>
             </svg>
         </div>
-        <span class="topbar-title">Искра</span>
+        <span class="topbar-title">Обсидиан</span>
         <div class="topbar-right">
             <div class="user-pill"><span class="u-dot"></span><span id="topName"></span></div>
             <button class="btn btn-exit" id="logoutBtn">Выйти</button>
@@ -453,7 +453,7 @@ function renderSchedule(){
         const isToday=ymd===todayYMD;
         let ico,txt,sub,hint2;
         if(st==="leave"){ico="🏖️";txt="Отпуск";sub="";hint2="";}
-        else if(st==="office"){ico="🏢";txt="Искра";sub=place?`Место: ${place}`:"Место не закреплено";hint2="→ дом";}
+        else if(st==="office"){ico="🏢";txt="Обсидиан";sub=place?`Место: ${place}`:"Место не закреплено";hint2="→ дом";}
         else{ico="🏠";txt="Дом / Воздвиженка";sub="";hint2="→ офис";}
         rows+=`<div class="sched-row ${st}${isToday?' today-row':''}" data-date="${ymd}">
             <div class="sched-date-col">
