@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Обсидиан — Бронирование</title>
+    <title>Искра — Бронирование</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -175,6 +175,25 @@
             .seat{width:86px;min-width:76px;height:68px;font-size:12px;}
             .seat-name{font-size:12px;} .map-row{gap:8px;}
         }
+
+        /* HELP BUTTON */
+        .help-fab{position:fixed;bottom:28px;right:28px;z-index:5000;width:52px;height:52px;border-radius:50%;background:var(--dark);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(47,68,78,0.35);transition:transform 0.2s,box-shadow 0.2s;}
+        .help-fab:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(47,68,78,0.45);}
+        .help-fab svg{display:block;}
+        .help-modal-bg{position:fixed;inset:0;background:rgba(30,44,33,0.45);z-index:5001;display:flex;align-items:flex-end;justify-content:flex-end;padding:28px;opacity:0;pointer-events:none;transition:opacity 0.2s;}
+        .help-modal-bg.open{opacity:1;pointer-events:auto;}
+        .help-modal{background:var(--surface);border-radius:20px;padding:24px;width:100%;max-width:340px;box-shadow:var(--shadow);transform:translateY(16px) scale(0.97);transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1);}
+        .help-modal-bg.open .help-modal{transform:translateY(0) scale(1);}
+        .help-modal-title{font-size:16px;font-weight:700;color:var(--dark);margin-bottom:4px;}
+        .help-modal-sub{font-size:13px;color:var(--text3);margin-bottom:16px;}
+        .help-textarea{width:100%;min-height:100px;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;color:var(--text);resize:vertical;background:var(--surface2);}
+        .help-textarea:focus{outline:none;border-color:var(--green);}
+        .help-modal-footer{display:flex;gap:8px;margin-top:12px;}
+        .help-send{flex:1;background:var(--green);color:white;border:none;border-radius:var(--radius-sm);padding:12px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:opacity 0.15s;}
+        .help-send:hover{opacity:0.88;}
+        .help-send:disabled{opacity:0.5;cursor:default;}
+        .help-cancel{background:transparent;color:var(--text3);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px 16px;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;}
+        .help-cancel:hover{background:var(--border);}
     </style>
 </head>
 <body>
@@ -200,7 +219,7 @@
                 <rect x="100" y="138" width="42" height="36" rx="6" fill="#76787A"/>
             </svg>
         </div>
-        <div class="login-title">Обсидиан</div>
+        <div class="login-title">Искра</div>
         <div class="login-sub">Система бронирования мест</div>
         <select id="employeeSelect"><option value="">Выберите себя...</option></select>
         <button class="btn btn-primary" id="loginBtn">Войти в систему</button>
@@ -216,7 +235,7 @@
                 <rect x="162" y="134" width="34" height="54" rx="4" fill="#2F444E"/>
             </svg>
         </div>
-        <span class="topbar-title">Обсидиан</span>
+        <span class="topbar-title">Искра</span>
         <div class="topbar-right">
             <div class="user-pill"><span class="u-dot"></span><span id="topName"></span></div>
             <button class="btn btn-exit" id="logoutBtn">Выйти</button>
@@ -299,7 +318,8 @@ const supabase=createClient(
 
 let employees=[],places=[],schedules=[],bookings=[],leaves=[];
 let currentUser=null, currentWeekStart=null;
-const dismissedHints=new Set(JSON.parse(localStorage.getItem('dh')||'[]'));
+let dismissedHints=new Set();
+function reloadHints(){dismissedHints=new Set(JSON.parse(localStorage.getItem('dh_'+currentUser)||'[]'));}
 
 /* ── helpers ── */
 const gwStart=d=>{const dt=new Date(d);const dy=dt.getDay();dt.setDate(dt.getDate()-(dy===0?6:dy-1));dt.setHours(0,0,0,0);return dt;};
@@ -336,7 +356,7 @@ function bindHints(){
         btn.onclick=()=>{
             const id=btn.dataset.hint;
             dismissedHints.add(id);
-            localStorage.setItem('dh',JSON.stringify([...dismissedHints]));
+            localStorage.setItem('dh_'+(currentUser||''),JSON.stringify([...dismissedHints]));
             document.getElementById(`hint-${id}`)?.remove();
         };
     });
@@ -453,7 +473,7 @@ function renderSchedule(){
         const isToday=ymd===todayYMD;
         let ico,txt,sub,hint2;
         if(st==="leave"){ico="🏖️";txt="Отпуск";sub="";hint2="";}
-        else if(st==="office"){ico="🏢";txt="Обсидиан";sub=place?`Место: ${place}`:"Место не закреплено";hint2="→ дом";}
+        else if(st==="office"){ico="🏢";txt="Искра";sub=place?`Место: ${place}`:"Место не закреплено";hint2="→ дом";}
         else{ico="🏠";txt="Дом / Воздвиженка";sub="";hint2="→ офис";}
         rows+=`<div class="sched-row ${st}${isToday?' today-row':''}" data-date="${ymd}">
             <div class="sched-date-col">
@@ -475,8 +495,8 @@ function renderSchedule(){
 
     const h=hint('schedule','📅','Как редактировать расписание',[
         'Нажмите на любой день — статус переключится между офисом и домом',
-        'Изменение сохранится только для текущей недели',
-        'Для изменения фиксированного расписания обратитесь к администратору',
+        'Изменение сохраняется сразу, без кнопки «Сохранить»',
+        'Зелёная рамка — сегодняшний день, серая полоска слева — дом, зелёная — офис',
         'Листайте недели кнопками «Назад» и «Вперёд»',
     ]);
 
@@ -584,9 +604,7 @@ function renderMap(){
                 toast(`Место ${placeName} освобождено`,"ok");
                 await loadData();renderAll();return;
             }
-            const hasOwn=myFixed&&myFixed!==placeName;
-            const msg=hasOwn?`У вас закреплено место ${myFixed}. Пересесть на ${placeName}?`:`Забронировать место ${placeName} на ${fDMY(dO)}?`;
-            if(!confirm(msg))return;
+            if(!confirm(`Забронировать место ${placeName} на ${fDMY(dO)}?`))return;
             const already=bookings.find(b=>b.date===dYMD&&b.place===placeName&&b.employee!==currentUser);
             if(already){toast("Место только что заняли, обновите страницу","bad");return;}
             const old=bookings.find(b=>b.date===dYMD&&b.employee===currentUser);
@@ -722,6 +740,7 @@ async function initLogin(){
 function login(name){
     currentUser=name; localStorage.setItem("currentUser",name);
     currentWeekStart=gwStart(new Date());
+    reloadHints();
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('mainApp').style.display='block';
     document.getElementById('topName').textContent=name;
@@ -751,11 +770,57 @@ document.addEventListener('DOMContentLoaded',async()=>{
         await new Promise(r=>setTimeout(r,Math.max(0,2400-performance.now())));
         hideLoader();
         currentUser=saved; currentWeekStart=gwStart(new Date());
+        reloadHints();
         document.getElementById('mainApp').style.display='block';
         document.getElementById('topName').textContent=saved;
         applyAdminMode(saved);
         renderAll();
     }else{initLogin();}
+
+
+    /* ══ HELP BUTTON ══ */
+    const TG_TOKEN = 'ВАШ_ТОКЕН_БОТА';
+    const TG_CHAT_ID = 'ВАШ_CHAT_ID';
+
+    const helpFab = document.getElementById('helpFab');
+    const helpBg  = document.getElementById('helpModalBg');
+    const helpCancel = document.getElementById('helpCancel');
+    const helpSend   = document.getElementById('helpSend');
+    const helpText   = document.getElementById('helpText');
+
+    helpFab.addEventListener('click', () => {
+        helpBg.classList.add('open');
+        helpText.focus();
+    });
+    helpCancel.addEventListener('click', () => helpBg.classList.remove('open'));
+    helpBg.addEventListener('click', e => { if(e.target===helpBg) helpBg.classList.remove('open'); });
+
+    helpSend.addEventListener('click', async () => {
+        const msg = helpText.value.trim();
+        if(!msg) return;
+        helpSend.disabled = true;
+        helpSend.textContent = 'Отправляем...';
+        const text = `📬 Сообщение из системы бронирования\n👤 От: ${currentUser||'неизвестно'}\n\n${msg}`;
+        try {
+            const res = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({chat_id: TG_CHAT_ID, text})
+            });
+            const data = await res.json();
+            if(data.ok){
+                toast('Сообщение отправлено!', 'ok');
+                helpText.value = '';
+                helpBg.classList.remove('open');
+            } else {
+                toast('Ошибка отправки. Проверьте настройки бота.', 'bad');
+            }
+        } catch(e) {
+            toast('Не удалось отправить. Проверьте интернет.', 'bad');
+        }
+        helpSend.disabled = false;
+        helpSend.textContent = 'Отправить';
+    });
 
     document.getElementById('loginBtn').addEventListener('click',()=>{
         const v=document.getElementById('employeeSelect').value;if(v)login(v);
@@ -771,5 +836,24 @@ document.addEventListener('DOMContentLoaded',async()=>{
     });
 });
 </script>
+
+<button class="help-fab" id="helpFab" title="Написать администратору">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+</button>
+
+<div class="help-modal-bg" id="helpModalBg">
+    <div class="help-modal">
+        <div class="help-modal-title">Написать администратору</div>
+        <div class="help-modal-sub">Опишите проблему или вопрос — ответим как можно скорее</div>
+        <textarea class="help-textarea" id="helpText" placeholder="Например: не могу забронировать место на пятницу..."></textarea>
+        <div class="help-modal-footer">
+            <button class="help-cancel" id="helpCancel">Отмена</button>
+            <button class="help-send" id="helpSend">Отправить</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
