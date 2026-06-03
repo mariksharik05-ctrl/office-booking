@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Искра — Бронирование</title>
+    <title>Обсидиан — Бронирование</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -219,7 +219,7 @@
                 <rect x="100" y="138" width="42" height="36" rx="6" fill="#76787A"/>
             </svg>
         </div>
-        <div class="login-title">Искра</div>
+        <div class="login-title">Обсидиан</div>
         <div class="login-sub">Система бронирования мест</div>
         <select id="employeeSelect"><option value="">Выберите себя...</option></select>
         <button class="btn btn-primary" id="loginBtn">Войти в систему</button>
@@ -235,7 +235,7 @@
                 <rect x="162" y="134" width="34" height="54" rx="4" fill="#2F444E"/>
             </svg>
         </div>
-        <span class="topbar-title">Искра</span>
+        <span class="topbar-title">Обсидиан</span>
         <div class="topbar-right">
             <div class="user-pill"><span class="u-dot"></span><span id="topName"></span></div>
             <button class="btn btn-exit" id="logoutBtn">Выйти</button>
@@ -473,7 +473,7 @@ function renderSchedule(){
         const isToday=ymd===todayYMD;
         let ico,txt,sub,hint2;
         if(st==="leave"){ico="🏖️";txt="Отпуск";sub="";hint2="";}
-        else if(st==="office"){ico="🏢";txt="Искра";sub=place?`Место: ${place}`:"Место не закреплено";hint2="→ дом";}
+        else if(st==="office"){ico="🏢";txt="Обсидиан";sub=place?`Место: ${place}`:"Место не закреплено";hint2="→ дом";}
         else{ico="🏠";txt="Дом / Воздвиженка";sub="";hint2="→ офис";}
         rows+=`<div class="sched-row ${st}${isToday?' today-row':''}" data-date="${ymd}">
             <div class="sched-date-col">
@@ -495,8 +495,8 @@ function renderSchedule(){
 
     const h=hint('schedule','📅','Как редактировать расписание',[
         'Нажмите на любой день — статус переключится между офисом и домом',
-        'Изменение сохраняется сразу, без кнопки «Сохранить»',
-        'Зелёная рамка — сегодняшний день, серая полоска слева — дом, зелёная — офис',
+        'Изменение сохраняется только для текущей недели',
+        'Для изменения постоянного расписания обратитесь к администратору',
         'Листайте недели кнопками «Назад» и «Вперёд»',
     ]);
 
@@ -779,8 +779,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
 
 
     /* ══ HELP BUTTON ══ */
-    const TG_TOKEN = 'ВАШ_ТОКЕН_БОТА';
-    const TG_CHAT_ID = 'ВАШ_CHAT_ID';
+    const TG_TOKEN = '8679285053:AAGWhbUJpjM0wqBWxbWKhb1vMhYM--SN7ew';
+    const TG_CHAT_ID = '1160582567';
 
     const helpFab = document.getElementById('helpFab');
     const helpBg  = document.getElementById('helpModalBg');
