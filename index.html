@@ -2,702 +2,774 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Бронирование офиса | Искра</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Искра — Бронирование</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-        body { background: #f2f2f7; margin: 0; padding: 16px; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .login-card { background: white; border-radius: 28px; padding: 32px 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-top: 40px; max-width: 400px; margin-left: auto; margin-right: auto; }
-        .login-card h2 { margin: 0 0 24px; text-align: center; }
-        select, button { width: 100%; padding: 14px; margin: 8px 0; border-radius: 14px; border: 1px solid #c6c6c8; font-size: 16px; }
-        button { background: #007aff; color: white; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        button:hover { opacity: 0.9; }
-        .logout-btn { background: #ff3b30; margin-top: 20px; }
-        .tabs { display: flex; gap: 8px; margin-bottom: 20px; background: white; padding: 8px; border-radius: 32px; overflow-x: auto; }
-        .tab-btn { flex: 1; min-width: 80px; padding: 12px 8px; border: none; background: transparent; font-size: 13px; font-weight: 500; border-radius: 28px; cursor: pointer; color: #666; white-space: nowrap; transition: 0.2s; }
-        .tab-btn.active { background: #007aff; color: white; }
-        .tab-content { display: none; background: white; border-radius: 20px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
-        .tab-content.active { display: block; }
-        .info-card { background: #f2f2f7; padding: 16px; border-radius: 16px; margin: 16px 0; }
-        
-        .week-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-        .week-nav { color: #000; background: #f2f2f7; border: none; padding: 8px 16px; border-radius: 24px; cursor: pointer; font-size: 14px; font-weight: 500; }
-        .schedule-grid { display: flex; flex-direction: column; gap: 12px; }
-        .schedule-day { display: flex; align-items: center; justify-content: space-between; background: #f9f9f9; border-radius: 16px; padding: 12px 16px; cursor: pointer; transition: 0.2s; border-left: 4px solid transparent; }
-        .schedule-day:hover { transform: scale(1.01); background: #f0f0f0; }
-        .schedule-day.office { background: #007aff10; border-left-color: #007aff; }
-        .schedule-day.home { background: #34c75910; border-left-color: #34c759; }
-        .schedule-day.leave { background: #ff950010; border-left-color: #ff9500; opacity: 0.7; cursor: not-allowed; }
-        .day-name { font-weight: 600; font-size: 16px; width: 180px; }
-        .day-status { font-size: 13px; padding: 4px 12px; border-radius: 20px; font-weight: 500; }
-        .status-office { background: #007aff; color: white; }
-        .status-home { background: #34c759; color: white; }
-        .status-leave { background: #ff9500; color: white; }
-        
-        .map-wrapper {
-            display: flex;
-            justify-content: center;
-            width: 100%;
-            margin-top: 32px;
+        :root {
+            --green:#8BC540; --dark:#2F444E; --gray:#76787A;
+            --green-light:#f0f8e6; --green-mid:#d4ecad;
+            --dark-light:#e8eef1; --dark-mid:#c5d2d8;
+            --bg:#f2f5f0; --surface:#ffffff; --surface2:#f7f9f6;
+            --border:#dde4db; --border2:#c8d2c6;
+            --text:#1e2c21; --text2:#4a5c4e; --text3:#8a9c8e;
+            --amber:#d4882a; --amber-light:#fdf4e6;
+            --radius:16px; --radius-sm:10px;
+            --shadow:0 2px 16px rgba(47,68,78,0.10);
+            --shadow-sm:0 1px 6px rgba(47,68,78,0.07);
         }
-        .map-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            width: auto;
-            max-width: 850px;
-        }
-        .map-row {
-            display: flex;
-            justify-content: flex-end;
-            gap: 14px;
-            flex-wrap: wrap;
-        }
-        .map-place {
-            width: 130px;
-            min-width: 110px;
-            height: 85px;
-            padding: 10px;
-            border-radius: 18px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 13px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        }
-        .map-place:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
-        .place-green { background: #34c759; color: white; }
-        .place-red { background: #ff3b30; color: white; }
-        .place-blue { background: #007aff; color: white; box-shadow: 0 0 0 2px white, 0 0 0 4px #007aff; }
-        
-        .colleagues-list { background: #f2f2f7; padding: 16px; border-radius: 20px; margin-top: 24px; }
-        .colleagues-list ul { list-style: none; padding: 0; margin: 0; }
-        .colleagues-list li { padding: 8px 0; border-bottom: 1px solid #e0e0e0; }
-        .admin-panel { background: #fff3e0; padding: 16px; border-radius: 20px; margin-bottom: 20px; border: 1px solid #ffd700; }
-        .flex-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-        .flex-row input, .flex-row select { padding: 8px 12px; border-radius: 12px; border: 1px solid #ccc; font-size: 14px; flex: 1; min-width: 120px; }
-        .loader { text-align: center; padding: 40px; color: #666; }
-        .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; font-size: 13px; background: #f9f9f9; padding: 12px; border-radius: 32px; justify-content: center; }
-        .legend span { display: flex; align-items: center; gap: 6px; }
-        .legend-dot { width: 14px; height: 14px; border-radius: 6px; display: inline-block; }
-        
-        @media (max-width: 750px) {
-            .map-place { width: 95px; min-width: 85px; height: 75px; font-size: 11px; }
-            .map-row { gap: 10px; }
-            .day-name { font-size: 14px; width: 130px; }
-            .tab-btn { font-size: 11px; }
-        }
-        @media (max-width: 550px) {
-            .map-place { width: 75px; min-width: 70px; height: 65px; font-size: 10px; }
-            .map-row { gap: 8px; }
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:'Nunito',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.5;}
+
+        /* LOADING */
+        .ls{position:fixed;inset:0;background:var(--dark);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s;}
+        .ls.out{opacity:0;pointer-events:none;}
+        .ls-label{color:rgba(255,255,255,0.6);font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-top:20px;}
+        .ls-dots::after{content:'';animation:ld 1.2s steps(4,end) infinite;}
+        @keyframes ld{0%{content:'';}25%{content:'.';}50%{content:'..';}75%{content:'...';}100%{content:'';}}
+
+        /* LOGIN */
+        .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+        .login-card{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:48px 40px;width:100%;max-width:380px;box-shadow:var(--shadow);text-align:center;animation:fadeUp 0.4s ease both;}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+        .login-logo{width:64px;height:64px;border-radius:18px;background:var(--dark);display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;}
+        .login-title{font-size:24px;font-weight:700;margin-bottom:6px;color:var(--dark);}
+        .login-sub{color:var(--text3);font-size:14px;margin-bottom:32px;}
+        select{width:100%;padding:13px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-family:inherit;font-size:15px;font-weight:500;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2376787A' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;margin-bottom:12px;transition:border-color 0.15s;}
+        select:focus{outline:none;border-color:var(--green);}
+        .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 20px;border:none;border-radius:var(--radius-sm);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:opacity 0.15s,transform 0.1s;width:100%;}
+        .btn:hover{opacity:0.88;}.btn:active{transform:scale(0.98);}
+        .btn-primary{background:var(--green);color:white;}
+        .btn-ghost{background:transparent;color:var(--text2);border:1.5px solid var(--border);width:auto;padding:8px 16px;font-size:13px;font-weight:500;}
+        .btn-ghost:hover{background:var(--border);opacity:1;}
+        .btn-exit{background:transparent;color:var(--gray);border:1.5px solid var(--border);width:auto;padding:8px 14px;font-size:13px;font-weight:500;}
+        .btn-exit:hover{background:var(--dark-light);opacity:1;}
+
+        /* APP */
+        .app{display:none;min-height:100vh;}
+        .topbar{background:var(--dark);padding:0 24px;display:flex;align-items:center;gap:10px;height:58px;position:sticky;top:0;z-index:100;}
+        .topbar-logo{width:34px;height:34px;border-radius:9px;background:var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .topbar-title{font-weight:700;font-size:17px;color:white;}
+        .topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+        .user-pill{background:rgba(255,255,255,0.12);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;color:white;display:flex;align-items:center;gap:6px;}
+        .u-dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
+
+        /* NAV */
+        .nav{background:var(--surface);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;padding:0 20px;}
+        .nav::-webkit-scrollbar{display:none;}
+        .nav-btn{padding:14px 18px;border:none;background:transparent;font-family:inherit;font-size:14px;font-weight:600;color:var(--text3);cursor:pointer;white-space:nowrap;border-bottom:2.5px solid transparent;transition:color 0.15s,border-color 0.15s;}
+        .nav-btn:hover{color:var(--dark);}
+        .nav-btn.active{color:var(--dark);border-bottom-color:var(--green);}
+
+        .main{padding:20px 24px 48px;max-width:860px;}
+        .tab-pane{display:none;}
+        .tab-pane.active{display:block;animation:fadeIn 0.2s ease;}
+        @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+
+        /* HINT BANNER */
+        .hint-banner{background:var(--green-light);border:1px solid var(--green-mid);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;display:flex;gap:12px;align-items:flex-start;}
+        .hint-icon{font-size:20px;flex-shrink:0;margin-top:1px;}
+        .hint-title{font-size:13px;font-weight:700;color:#3a6614;margin-bottom:4px;}
+        .hint-text{font-size:13px;color:#4a7a1a;line-height:1.55;}
+        .hint-close{margin-left:auto;background:none;border:none;cursor:pointer;color:#3a6614;font-size:18px;line-height:1;padding:0 0 0 8px;flex-shrink:0;opacity:0.6;}
+        .hint-close:hover{opacity:1;}
+        .hint-steps{margin-top:8px;display:flex;flex-direction:column;gap:5px;}
+        .hint-step{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#4a7a1a;}
+        .hint-num{width:20px;height:20px;border-radius:50%;background:var(--green);color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+
+        /* CARDS */
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:14px;}
+        .card-title{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text3);margin-bottom:14px;display:flex;align-items:center;gap:7px;}
+        .card-title-dot{width:8px;height:8px;border-radius:50%;}
+
+        /* TODAY */
+        .today-strip{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+        .today-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+        .today-val{font-size:18px;font-weight:700;margin-top:2px;}
+        .today-place{font-size:13px;color:var(--text2);margin-top:3px;}
+        .toggle-btn{margin-left:auto;padding:9px 18px;border-radius:999px;border:1.5px solid var(--border);background:var(--surface2);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--text2);transition:all 0.15s;white-space:nowrap;flex-shrink:0;}
+        .toggle-btn:hover{background:var(--green);color:white;border-color:var(--green);}
+
+        /* PILLS */
+        .pills{display:flex;flex-wrap:wrap;gap:7px;}
+        .ppill{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:500;}
+        .pdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+        .dot-in{background:var(--green);} .dot-out{background:var(--gray);} .dot-leave{background:var(--amber);}
+
+        /* SCHEDULE */
+        .week-nav{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+        .week-title{font-size:16px;font-weight:700;}
+        .week-sub{font-size:13px;color:var(--text3);font-weight:400;}
+        .sched-list{display:flex;flex-direction:column;gap:6px;}
+        .sched-row{display:flex;align-items:center;gap:14px;background:var(--surface);border:1.5px solid var(--border);border-left:4px solid var(--border);border-radius:var(--radius-sm);padding:13px 16px;cursor:pointer;transition:border-color 0.15s,box-shadow 0.15s;}
+        .sched-row:hover{box-shadow:var(--shadow-sm);border-color:var(--border2);}
+        .sched-row.office{border-left-color:var(--green);}
+        .sched-row.home{border-left-color:var(--gray);}
+        .sched-row.leave{border-left-color:var(--amber);opacity:0.6;cursor:not-allowed;pointer-events:none;}
+        .sched-row.today-row{box-shadow:0 0 0 2px var(--green);border-color:transparent;}
+        .sched-date-col{flex-shrink:0;width:110px;}
+        .sched-day{font-weight:700;font-size:15px;}
+        .sched-date{font-size:12px;color:var(--text3);margin-top:1px;}
+        .today-chip{display:inline-block;background:var(--green);color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;margin-top:4px;letter-spacing:0.04em;}
+        .sched-body{flex:1;}
+        .sched-st{font-size:14px;font-weight:600;}
+        .sched-sub{font-size:12px;color:var(--text3);margin-top:1px;}
+        .sched-hint{font-size:11px;color:var(--text3);font-weight:500;opacity:0;transition:opacity 0.15s;flex-shrink:0;}
+        .sched-row:hover .sched-hint{opacity:1;}
+
+        /* PROFILE */
+        .profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+        @media(max-width:500px){.profile-grid{grid-template-columns:1fr;}}
+        .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+        .stat-label{font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;}
+        .stat-value{font-size:17px;font-weight:700;color:var(--dark);}
+        .stat-sub{font-size:13px;color:var(--text2);margin-top:4px;}
+        .day-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;}
+        .dchip{padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--green-light);color:#4a7a1a;border:1px solid var(--green-mid);}
+        .dchip.remote{background:var(--surface2);color:var(--text3);border-color:var(--border);}
+
+        /* MAP */
+        .map-controls{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+        .map-date{padding:9px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;font-weight:500;background:var(--surface);color:var(--text);cursor:pointer;}
+        .map-date:focus{outline:none;border-color:var(--green);}
+        .legend{display:flex;gap:14px;flex-wrap:wrap;}
+        .leg{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);font-weight:500;}
+        .ld{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+        .ld-free{background:var(--green);} .ld-taken{background:var(--dark-mid);} .ld-mine{background:var(--dark);}
+        .map-grid{display:flex;flex-direction:column;gap:10px;}
+        .map-row{display:flex;gap:10px;flex-wrap:wrap;}
+        .seat{width:118px;min-width:95px;height:80px;border-radius:14px;border:2px solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:13px;font-weight:600;transition:transform 0.12s,box-shadow 0.12s;gap:3px;}
+        .seat:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+        .seat-name{font-size:14px;font-weight:700;}
+        .seat-who{font-size:11px;font-weight:500;opacity:0.75;}
+        .seat-free{background:var(--green-light);border-color:var(--green-mid);color:#3a6614;}
+        .seat-taken{background:var(--dark-light);border-color:var(--dark-mid);color:var(--gray);cursor:default;}
+        .seat-taken:hover{transform:none;box-shadow:none;}
+        .seat-mine{background:var(--dark);border-color:var(--dark);color:white;box-shadow:0 0 0 3px white,0 0 0 5px var(--dark);}
+        .seat-own-free{background:var(--green-light);border:2px dashed var(--green);color:#3a6614;}
+        .colleagues-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;}
+        .colleagues-grid{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;}
+
+        /* ADMIN */
+        .admin-card{background:#fffdf5;border:1px solid #e8e0b8;border-radius:var(--radius);padding:20px;margin-bottom:14px;}
+        .admin-title{font-size:11px;font-weight:700;color:#8a7a30;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;}
+        .admin-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;}
+        .admin-row select,.admin-row input[type=date]{flex:1;min-width:120px;margin-bottom:0;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;background:var(--surface);color:var(--text);}
+        .admin-row .btn{width:auto;padding:11px 18px;font-size:14px;}
+        .leaves-list{margin-top:12px;display:flex;flex-direction:column;gap:6px;}
+        .leave-item{display:flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;gap:10px;}
+        .leave-name{font-weight:700;}
+        .leave-dates{color:var(--text2);flex:1;}
+        .del-btn{padding:4px 10px;border-radius:6px;background:#fdf0ec;color:#c0422a;border:1px solid #f0cfc6;font-size:12px;font-weight:600;cursor:pointer;}
+        .del-btn:hover{background:#f9e0d9;}
+
+        /* TOAST */
+        .toast-wrap{position:fixed;bottom:28px;right:28px;z-index:9998;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+        .toast{background:var(--dark);color:white;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:600;max-width:280px;opacity:0;transform:translateY(10px) scale(0.96);transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1);pointer-events:auto;}
+        .toast.show{opacity:1;transform:translateY(0) scale(1);}
+        .toast.ok{background:var(--green);} .toast.bad{background:#c0422a;} .toast.warn{background:var(--amber);}
+
+        @media(max-width:600px){
+            .topbar{padding:0 14px;} .nav{padding:0 12px;} .main{padding:14px 14px 40px;}
+            .seat{width:86px;min-width:76px;height:68px;font-size:12px;}
+            .seat-name{font-size:12px;} .map-row{gap:8px;}
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <div id="loginScreen">
-        <div class="login-card">
-            <h2>🏢 Бронирование офиса</h2>
-            <div id="loginLoader" class="loader">Загрузка...</div>
-            <select id="employeeSelect" style="display: none;">
-                <option value="">Выберите себя</option>
-            </select>
-            <button id="loginBtn" style="display: none;">Войти</button>
+
+<div class="ls" id="ls">
+    <canvas id="hc" width="240" height="230"></canvas>
+    <div class="ls-label ls-dots">Загружаем</div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<div class="login-wrap" id="loginScreen" style="display:none;">
+    <div class="login-card">
+        <div class="login-logo">
+            <svg width="36" height="34" viewBox="0 0 240 230" fill="none">
+                <rect x="18" y="188" width="204" height="22" rx="6" fill="#8BC540"/>
+                <rect x="28" y="120" width="184" height="68" rx="3" fill="#C8C8C8"/>
+                <rect x="162" y="68" width="22" height="50" rx="4" fill="#76787A"/>
+                <path d="M120 44L10 116L230 116Z" fill="#8BC540"/>
+                <rect x="8" y="112" width="224" height="16" rx="5" fill="#8BC540"/>
+                <rect x="162" y="134" width="34" height="54" rx="5" fill="#2F444E"/>
+                <rect x="42" y="138" width="42" height="36" rx="6" fill="#76787A"/>
+                <rect x="100" y="138" width="42" height="36" rx="6" fill="#76787A"/>
+            </svg>
+        </div>
+        <div class="login-title">Искра</div>
+        <div class="login-sub">Система бронирования мест</div>
+        <select id="employeeSelect"><option value="">Выберите себя...</option></select>
+        <button class="btn btn-primary" id="loginBtn">Войти в систему</button>
+    </div>
+</div>
+
+<div class="app" id="mainApp">
+    <div class="topbar">
+        <div class="topbar-logo">
+            <svg width="20" height="19" viewBox="0 0 240 230" fill="none">
+                <path d="M120 44L10 116L230 116Z" fill="white"/>
+                <rect x="28" y="116" width="184" height="72" rx="3" fill="white" opacity="0.85"/>
+                <rect x="162" y="134" width="34" height="54" rx="4" fill="#2F444E"/>
+            </svg>
+        </div>
+        <span class="topbar-title">Искра</span>
+        <div class="topbar-right">
+            <div class="user-pill"><span class="u-dot"></span><span id="topName"></span></div>
+            <button class="btn btn-exit" id="logoutBtn">Выйти</button>
         </div>
     </div>
 
-    <div id="mainApp" style="display: none;">
-        <div class="tabs" style="align-items:center;">
-            <button class="tab-btn active" data-tab="profile">👤 Профиль</button>
-            <button class="tab-btn" data-tab="schedule">📅 Расписание</button>
-            <button class="tab-btn" data-tab="map">🗺️ Карта мест</button>
-            <button id="logoutBtnTop"
-                style="margin-left:auto; width:auto; background:#ff3b30; color:white; border:none; padding:10px 16px; border-radius:20px; cursor:pointer; font-size:14px;">
-                🚪 Выйти
-            </button>
-        </div>
+    <div class="nav">
+        <button class="nav-btn active" data-tab="home">Сегодня</button>
+        <button class="nav-btn" data-tab="schedule">Расписание</button>
+        <button class="nav-btn" data-tab="map">Карта мест</button>
+        <button class="nav-btn" data-tab="profile" id="profileTabBtn">Профиль</button>
+    </div>
 
-        <div id="profileTab" class="tab-content active">
-            <div id="profileInfo"></div>
-            <div id="adminPanel"></div>
-        </div>
-
-        <div id="scheduleTab" class="tab-content">
-            <div class="week-header">
-                <button class="week-nav" id="prevWeekBtn">◀ Предыдущая</button>
-                <span id="weekRange"></span>
-                <button class="week-nav" id="nextWeekBtn">Следующая ▶</button>
-            </div>
-            <div id="scheduleList" class="schedule-grid"></div>
-            <div class="info-card" style="margin-top: 20px; font-size: 14px;">
-                💡 <strong>Кликайте по любому дню</strong>, чтобы переключить статус между офисом и домом.<br>
-                ✅ Работает для всех дней без ограничений.
-            </div>
-        </div>
-
-        <div id="mapTab" class="tab-content">
-            <input type="date" id="mapDatePicker" style="margin-bottom: 16px; padding: 10px; border-radius: 14px; border: 1px solid #ccc; width: 100%; max-width: 260px;">
-            <div class="legend">
-                <span><span class="legend-dot" style="background:#34c759;"></span> Свободно</span>
-                <span><span class="legend-dot" style="background:#ff3b30;"></span> Занято</span>
-                <span><span class="legend-dot" style="background:#007aff;"></span> Ваше место</span>
-            </div>
-            
-            <div class="map-wrapper">
-                <div id="officeMap" class="map-grid"></div>
-            </div>
-            <div class="info-card" style="margin-top:20px; font-size:14px;">
-                💡 <strong>Как пользоваться:</strong><br>
-                • Нажмите на <strong>свободное место</strong>, чтобы забронировать<br>
-                • Можно занять <strong>любое место</strong>, даже если у вас есть своё<br>
-                • При пересадке ваше место автоматически освобождается<br>
-                • Нажмите на <strong>своё место</strong>, чтобы освободить его<br>
-                • Красные места заняты другими сотрудниками
-            </div>
-            
-            <div id="colleaguesOnMap" class="colleagues-list"></div>
-        </div>
+    <div class="main">
+        <div id="homeTab"     class="tab-pane active"></div>
+        <div id="scheduleTab" class="tab-pane"></div>
+        <div id="mapTab"      class="tab-pane"></div>
+        <div id="profileTab"  class="tab-pane"></div>
     </div>
 </div>
 
 <script type="module">
-    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    const supabaseUrl = "https://yhnjagspjhemwuqrstmq.supabase.co";
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlobmphZ3NwamhlbXd1cXJzdG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NzgwMDUsImV4cCI6MjA5MjI1NDAwNX0.YJoWnjP_Qe8w2cFxT6EgWQHSCyw7OFWTVMMxJ-L3JFo";
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    let employees = [], places = [], schedules = [], bookings = [], leaves = [];
-    let currentUser = null;
-    let currentWeekStart = null;
-
-    function getWeekStart(date) {
-        const d = new Date(date);
-        const day = d.getDay();
-        const diff = (day === 0 ? 6 : day - 1);
-        d.setDate(d.getDate() - diff);
-        d.setHours(0,0,0,0);
-        return d;
+/* ══ HOUSE ANIMATION ══ */
+(function(){
+    const cv=document.getElementById('hc');
+    const ctx=cv.getContext('2d');
+    function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
+    function prog(ph,s,e){
+        if(ph<=s)return 0; if(ph>=e)return 1;
+        const t=(ph-s)/(e-s); return t<0.5?2*t*t:-1+(4-2*t)*t;
     }
-
-    function formatYMD(date) {
-        return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    function dropIn(p,fn){
+        if(p<=0)return; ctx.save();
+        ctx.globalAlpha=Math.min(p*2,1);
+        ctx.translate(0,(1-p)*-30); fn(); ctx.restore();
     }
-
-    function formatDMY(date) {
-        return `${String(date.getDate()).padStart(2,'0')}.${String(date.getMonth()+1).padStart(2,'0')}.${date.getFullYear()}`;
+    function fadeIn(p,fn){
+        if(p<=0)return; ctx.save(); ctx.globalAlpha=p; fn(); ctx.restore();
     }
-
-    function getWeekDates(start) {
-        const dates = [];
-        for (let i=0; i<7; i++) {
-            const d = new Date(start);
-            d.setDate(start.getDate() + i);
-            dates.push(d);
-        }
-        return dates;
-    }
-
-    function getDayName(date) {
-        const days = ['sun','mon','tue','wed','thu','fri','sat'];
-        return days[date.getDay()];
-    }
-
-    async function loadData() {
-        const [empRes, placesRes, schedRes, bookRes, leavesRes] = await Promise.all([
-            supabase.from("employees").select("*"),
-            supabase.from("places").select("*"),
-            supabase.from("schedules").select("*"),
-            supabase.from("bookings").select("*"),
-            supabase.from("leaves").select("*")
-        ]);
-        employees = empRes.data || [];
-        places = placesRes.data || [];
-        schedules = schedRes.data || [];
-        bookings = bookRes.data || [];
-        leaves = leavesRes.data || [];
-    }
-
-    function isOnLeave(employeeName, dateYMD) {
-        return leaves.some(l => l.employee === employeeName && dateYMD >= l.start_date && dateYMD <= l.end_date);
-    }
-
-    function getUserStatus(employeeName, date, dateYMD) {
-        if (isOnLeave(employeeName, dateYMD)) return "leave";
-        
-        const booking = bookings.find(b => b.date === dateYMD && b.employee === employeeName);
-        if (booking) {
-            if (booking.place === null) return "home";
-            return "office";
-        }
-        
-        const sched = schedules.find(s => s.employee === employeeName);
-        if (sched) {
-            const dayName = getDayName(date);
-            if (sched[dayName] === 1) return "office";
-        }
-        return "home";
-    }
-
-    // Получаем место, которое занимает сотрудник (если в офисе и есть бронь или закреплённое место)
-    function getOccupiedPlace(employeeName, dateYMD) {
-        const booking = bookings.find(b => b.date === dateYMD && b.employee === employeeName);
-        if (booking && booking.place !== null && booking.place !== "office_mode") return booking.place;
-        
-        if (!isOnLeave(employeeName, dateYMD)) {
-            const emp = employees.find(e => e.name === employeeName);
-            const status = getUserStatus(employeeName, new Date(dateYMD), dateYMD);
-            if (status === "office" && emp?.place && emp.place.trim() !== "") return emp.place;
-        }
-        return null;
-    }
-
-    function renderProfile() {
-        const emp = employees.find(e => e.name === currentUser);
-        const hasPlace = (emp?.place && emp.place.trim() !== "") ? `✅ ${emp.place}` : '❌ Нет закреплённого места';
-        const shared = emp?.shared_with ? ` (совместно с ${emp.shared_with})` : '';
-        
-        document.getElementById("profileInfo").innerHTML = `
-            <h2>👋 ${currentUser}</h2>
-            <div class="info-card">
-                <strong>🏷️ Моё место:</strong> ${hasPlace}${shared}<br>
-                <strong>📅 Базовое расписание:</strong> ${getScheduleText(emp?.name)}
-            </div>
-        `;
-    }
-
-    function getScheduleText(name) {
-        const sched = schedules.find(s => s.employee === name);
-        if (!sched) return "не задано";
-        const days = ['mon','tue','wed','thu','fri','sat','sun'];
-        const names = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-        const officeDays = [];
-        for (let i=0; i<7; i++) {
-            if (sched[days[i]] === 1) officeDays.push(names[i]);
-        }
-        return officeDays.length ? officeDays.join(', ') : "все дни удалённо";
-    }
-
-    async function toggleOfficeStatus(dateYMD) {
-        const dateObj = new Date(dateYMD);
-        const currentStatus = getUserStatus(currentUser, dateObj, dateYMD);
-        
-        if (currentStatus === "leave") {
-            alert("🏖️ У вас отпуск в этот день. Нельзя изменить статус.");
-            return;
-        }
-        
-        const existingBooking = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
-        
-        if (currentStatus === "office") {
-            if (existingBooking) {
-                await supabase.from("bookings").delete().eq("id", existingBooking.id);
-            }
-            await supabase.from("bookings").insert([{
-                date: dateYMD,
-                employee: currentUser,
-                place: null
-            }]);
-            alert("✅ Переключено на 🏠 ДОМ");
-        } else {
-            if (existingBooking) {
-                await supabase.from("bookings").delete().eq("id", existingBooking.id);
-            }
-            await supabase.from("bookings").insert([{
-                date: dateYMD,
-                employee: currentUser,
-                place: "office_mode"
-            }]);
-            alert("✅ Переключено на 🏢 ОФИС");
-        }
-        
-        await loadData();
-        await renderSchedule();
-        await renderMap();
-    }
-    
-    async function renderSchedule() {
-        if (!currentUser) return;
-        const weekDates = getWeekDates(currentWeekStart);
-        const days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
-        
-        let html = '';
-        for (let i=0; i<7; i++) {
-            const date = weekDates[i];
-            const dateYMD = formatYMD(date);
-            const status = getUserStatus(currentUser, date, dateYMD);
-            
-            let statusText, statusClass;
-            if (status === "leave") {
-                statusText = "🏖️ Отпуск";
-                statusClass = "status-leave";
-            } else {
-                statusText = status === "office" ? "🏢 Искра" : "🏠 Дом / Воздвиженка";
-                statusClass = status === "office" ? "status-office" : "status-home";
-            }
-            
-            html += `
-                <div class="schedule-day ${status}" data-date="${dateYMD}" style="${status === 'leave' ? 'cursor: not-allowed;' : ''}">
-                    <span class="day-name">
-                        ${days[i]}<br>
-                        <small style="display:block; font-weight:400; margin-top:4px;">${formatDMY(date)}</small>
-                    </span>
-                    <span class="day-status ${statusClass}">${statusText}</span>
-                </div>
-            `;
-        }
-        document.getElementById("scheduleList").innerHTML = html;
-        document.getElementById("weekRange").innerHTML = `${formatDMY(weekDates[0])} — ${formatDMY(weekDates[6])}`;
-        
-        document.querySelectorAll(".schedule-day").forEach(el => {
-            el.onclick = async () => {
-                const dateYMD = el.dataset.date;
-                const status = getUserStatus(currentUser, new Date(dateYMD), dateYMD);
-                if (status === "leave") {
-                    alert("В отпуске нельзя изменить статус");
-                    return;
-                }
-                await toggleOfficeStatus(dateYMD);
-            };
+    function draw(phase){
+        ctx.clearRect(0,0,240,230);
+        const pF=prog(phase,0,0.12), pW=prog(phase,0.10,0.26),
+              pC=prog(phase,0.24,0.38), pR=prog(phase,0.36,0.54),
+              pD=prog(phase,0.52,0.64), p1=prog(phase,0.62,0.73),
+              p2=prog(phase,0.69,0.80), pS=prog(phase,0.78,1.00);
+        dropIn(pF,()=>{ ctx.fillStyle='#76787A'; rr(18,188,204,22,6); });
+        dropIn(pW,()=>{ ctx.fillStyle='#C8C8C8'; rr(28,120,184,68,3); });
+        dropIn(pC,()=>{ ctx.fillStyle='#76787A'; rr(162,68,22,50,4); });
+        dropIn(pR,()=>{
+            ctx.fillStyle='#8BC540';
+            ctx.beginPath(); ctx.moveTo(120,44); ctx.lineTo(10,116); ctx.lineTo(230,116); ctx.closePath(); ctx.fill();
+            ctx.fillStyle='#8BC540'; rr(8,112,224,16,5);
         });
+        fadeIn(pD,()=>{ ctx.fillStyle='#2F444E'; rr(162,134,34,54,[5,5,0,0]); });
+        fadeIn(p1,()=>{ ctx.fillStyle='#76787A'; rr(42,138,42,36,6); });
+        fadeIn(p2,()=>{ ctx.fillStyle='#76787A'; rr(100,138,42,36,6); });
+        if(pS>0){
+            const t=(phase-0.78)/0.22;
+            for(let i=0;i<5;i++){
+                const off=((t*1.3)+i*0.26)%1;
+                const sx=173+Math.sin(off*Math.PI*2.5)*6, sy=68-off*42, sr=3+off*9;
+                ctx.save(); ctx.globalAlpha=(1-off)*0.55*pS;
+                ctx.fillStyle='#aabfc8';
+                ctx.beginPath(); ctx.arc(sx,sy,sr,0,Math.PI*2); ctx.fill(); ctx.restore();
+            }
+        }
     }
+    let start=null;
+    function frame(ts){ if(!start)start=ts; draw(((ts-start)%2800)/2800); requestAnimationFrame(frame); }
+    requestAnimationFrame(frame);
+})();
 
-    async function renderMap() {
-        let dateYMD = document.getElementById("mapDatePicker")?.value;
-        if (!dateYMD) {
-            dateYMD = formatYMD(new Date());
-            document.getElementById("mapDatePicker").value = dateYMD;
-        }
-        const dateObj = new Date(dateYMD);
-        
-        const myFixedPlaceRaw = employees.find(e => e.name === currentUser)?.place || "";
-        const myFixedPlace = (myFixedPlaceRaw && myFixedPlaceRaw.trim() !== "") ? myFixedPlaceRaw : null;
-        
-        // Определяем, кто какое место занимает (только те, кто в офисе)
-        const placeOccupant = new Map();
-        
-        for (const emp of employees) {
-            if (emp.name === "Админ") continue;
-            const inLeave = isOnLeave(emp.name, dateYMD);
-            if (inLeave) continue;
-            
-            const status = getUserStatus(emp.name, dateObj, dateYMD);
-            if (status === "office") {
-                let occupiedPlace = getOccupiedPlace(emp.name, dateYMD);
-                if (occupiedPlace) {
-                    if (!placeOccupant.has(occupiedPlace)) {
-                        placeOccupant.set(occupiedPlace, emp.name);
-                    }
-                }
-            }
-        }
-        
-        // Брони с конкретным местом имеют приоритет
-        for (const book of bookings) {
-            if (book.date === dateYMD && book.place !== null && book.place !== "office_mode") {
-                const bookOwner = book.employee;
-                if (!isOnLeave(bookOwner, dateYMD)) {
-                    placeOccupant.set(book.place, bookOwner);
-                }
-            }
-        }
-        
-        // Собираем всех, кто в офисе (для списка)
-        const peopleInOffice = [];
-        for (const emp of employees) {
-            if (emp.name === "Админ") continue;
-            const status = getUserStatus(emp.name, dateObj, dateYMD);
-            if (status === "office" && !isOnLeave(emp.name, dateYMD)) {
-                peopleInOffice.push(emp.name);
-                
-            }
-        }
-        peopleInOffice.sort((a, b) => a.localeCompare(b, 'ru'));
-        // Группировка мест
-        const rows = new Map();
-        for (const place of places) {
-            const y = place.pos_y;
-            if (!rows.has(y)) rows.set(y, []);
-            rows.get(y).push(place);
-        }
-        const sortedYs = Array.from(rows.keys()).sort((a, b) => b - a);
-        
-        let html = '';
-        for (const y of sortedYs) {
-            const placesInRow = rows.get(y);
-            placesInRow.sort((a, b) => a.pos_x - b.pos_x);
-            html += `<div class="map-row">`;
-            
-            for (const place of placesInRow) {
-                const occupant = placeOccupant.get(place.name);
-                let color = "green";
-                let occupantName = "свободно";
-                const isMyPlace = (myFixedPlace === place.name);
-                
-                if (occupant) {
-                    if (occupant === currentUser) {
-                        color = "blue";
-                        occupantName = currentUser;
-                    } else {
-                        color = "red";
-                        occupantName = occupant;
-                    }
-                } else {
-                    if (isMyPlace) {
-                        // если пользователь НЕ сидит на своем месте → оно свободное (зелёное)
-                        const myActualPlace = getOccupiedPlace(currentUser, dateYMD);
-                    
-                        if (myActualPlace !== place.name) {
-                            color = "green";
-                            occupantName = "Ваше место";
-                        } else {
-                            color = "blue";
-                            occupantName = currentUser;
-                        }
-                    }
-                }
-                
-                html += `<div class="map-place place-${color}" data-place="${place.name}" data-color="${color}" data-occupant="${occupantName}">
-                    <strong>${place.name}</strong><br><span style="font-size:11px;">${occupantName}</span>
-                </div>`;
-            }
-            html += `</div>`;
-        }
-        document.getElementById("officeMap").innerHTML = html;
-        
-        // ВСЕГДА показываем список тех, кто в офисе (независимо от статуса текущего пользователя)
-        document.getElementById("colleaguesOnMap").innerHTML = `
-            <h4>👥 В офисе на Искре (${formatDMY(dateObj)})</h4>
-            <ul>${peopleInOffice.length ? peopleInOffice.map(c => `<li>${c}</li>`).join('') : '<li>✨ Никого нет</li>'}</ul>
-        `;
-        
-        // Клики по местам — теперь можно бронировать любые свободные места
-        document.querySelectorAll(".map-place").forEach(el => {
-            el.onclick = async () => {
-                const placeName = el.dataset.place;
-                const color = el.dataset.color;
-                const occupantText = el.querySelector("span")?.innerText || "";
-                
-                // Если место синее и принадлежит текущему пользователю — можно освободить
-                if (color === "blue" && (occupantText === currentUser || occupantText === "Ваше место")) {
-                    if (confirm(`Освободить место ${placeName} на ${formatDMY(dateObj)}?`)) {
-                        const myBooking = bookings.find(b => b.date === dateYMD && b.employee === currentUser && b.place === placeName);
-                        if (myBooking) {
-                            await supabase.from("bookings").delete().eq("id", myBooking.id);
-                            alert(`✅ Вы освободили место ${placeName}`);
-                        } else {
-                            // Если это было закреплённое место без брони — создаём бронь на дом
-                            const existingOverride = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
-                            if (existingOverride) {
-                                await supabase.from("bookings").delete().eq("id", existingOverride.id);
-                            }
-                            await supabase.from("bookings").insert([{
-                                date: dateYMD,
-                                employee: currentUser,
-                                place: null
-                            }]);
-                            alert(`✅ Вы освободили место ${placeName}`);
-                        }
-                        await loadData();
-                        await renderMap();
-                        await renderSchedule();
-                    }
-                    return;
-                }
-                
-                // Если место красное — занято другим
-                if (color === "red") {
-                    alert(`Место ${placeName} занято сотрудником ${occupantText}`);
-                    return;
-                }
-                
-                // Если место зелёное или синее (но не моё) — можно забронировать (с подтверждением)
-                if (color === "green" || (color === "blue" && occupantText !== currentUser)) {
-                    // Предупреждение, если у пользователя есть своё место, но он бронирует чужое
-                    const emp = employees.find(e => e.name === currentUser);
-                    const hasOwnPlace = (emp?.place && emp.place.trim() !== "");
-                    let confirmMessage = `Забронировать место ${placeName} на ${formatDMY(dateObj)}?`;
-                    if (hasOwnPlace && emp.place !== placeName) {
-                        confirmMessage = `⚠️ У вас есть закреплённое место: ${emp.place}. Вы уверены, что хотите забронировать ${placeName}? (ваше место освободится)`;
-                    }
-                    
-                    if (confirm(confirmMessage)) {
-                        // Проверяем, не заняли ли место только что
-                        const alreadyBooked = bookings.find(b => b.date === dateYMD && b.place === placeName);
-                        if (alreadyBooked) {
-                            alert("⚠️ Место только что заняли. Обновите страницу.");
-                            return;
-                        }
-                        
-                        // Удаляем старую бронь пользователя (если была)
-                        const myOld = bookings.find(b => b.date === dateYMD && b.employee === currentUser);
-                        if (myOld) await supabase.from("bookings").delete().eq("id", myOld.id);
-                        
-                        // Создаём новую бронь
-                        await supabase.from("bookings").insert([{ 
-                            date: dateYMD, 
-                            employee: currentUser, 
-                            place: placeName 
-                        }]);
-                        alert(`✅ Вы забронировали ${placeName}`);
-                        await loadData();
-                        await renderMap();
-                        await renderSchedule();
-                    }
-                    return;
-                }
-            };
-        });
-    }
+/* ══ SUPABASE ══ */
+const supabase=createClient(
+    "https://yhnjagspjhemwuqrstmq.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlobmphZ3NwamhlbXd1cXJzdG1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2NzgwMDUsImV4cCI6MjA5MjI1NDAwNX0.YJoWnjP_Qe8w2cFxT6EgWQHSCyw7OFWTVMMxJ-L3JFo"
+);
 
-    function initAdminPanel() {
-        if (currentUser !== "Админ") return;
-        document.getElementById("adminPanel").innerHTML = `
-            <div class="admin-panel">
-                <h4>🔧 Управление отпусками</h4>
-                <div class="flex-row">
-                    <select id="leaveEmployee"><option value="">Сотрудник</option></select>
-                    <input type="date" id="leaveStart">
-                    <input type="date" id="leaveEnd">
-                    <button id="addLeaveBtn">➕ Добавить отпуск</button>
-                </div>
-                <div id="leavesList" style="margin-top: 12px; font-size: 13px;"></div>
-            </div>`;
-        
-        const select = document.getElementById("leaveEmployee");
-        select.innerHTML = '<option value="">Сотрудник</option>' + 
-            employees.filter(e => e.name !== "Админ").map(e => `<option value="${e.name}">${e.name}</option>`).join('');
-        
-        document.getElementById("addLeaveBtn").onclick = async () => {
-            const employee = document.getElementById("leaveEmployee").value;
-            const start = document.getElementById("leaveStart").value;
-            const end = document.getElementById("leaveEnd").value;
-            if (!employee || !start || !end) { alert("Заполните все поля"); return; }
-            if (start > end) { alert("Дата начала позже окончания"); return; }
-            
-            await supabase.from("leaves").insert([{ 
-                employee, start_date: start, end_date: end, type: "vacation" 
-            }]);
-            await loadData();
-            alert(`✅ Отпуск для ${employee} (${start} — ${end})`);
-            await renderAll();
-            renderLeavesList();
+let employees=[],places=[],schedules=[],bookings=[],leaves=[];
+let currentUser=null, currentWeekStart=null;
+const dismissedHints=new Set(JSON.parse(localStorage.getItem('dh')||'[]'));
+
+/* ── helpers ── */
+const gwStart=d=>{const dt=new Date(d);const dy=dt.getDay();dt.setDate(dt.getDate()-(dy===0?6:dy-1));dt.setHours(0,0,0,0);return dt;};
+const fYMD=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const fDMY=d=>`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+const wDates=s=>Array.from({length:7},(_,i)=>{const d=new Date(s);d.setDate(s.getDate()+i);return d;});
+const dayKey=d=>['sun','mon','tue','wed','thu','fri','sat'][d.getDay()];
+const today=()=>fYMD(new Date());
+
+/* ── toast ── */
+function toast(msg,type=''){
+    const el=document.createElement('div');
+    el.className=`toast ${type}`; el.textContent=msg;
+    document.getElementById('toastWrap').appendChild(el);
+    requestAnimationFrame(()=>el.classList.add('show'));
+    setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300);},2800);
+}
+
+/* ── hint banner ── */
+function hint(id,icon,title,steps,container){
+    if(dismissedHints.has(id)) return '';
+    const stepsHtml=steps.map((s,i)=>`<div class="hint-step"><span class="hint-num">${i+1}</span><span>${s}</span></div>`).join('');
+    return `<div class="hint-banner" id="hint-${id}">
+        <div class="hint-icon">${icon}</div>
+        <div style="flex:1;">
+            <div class="hint-title">${title}</div>
+            <div class="hint-steps">${stepsHtml}</div>
+        </div>
+        <button class="hint-close" data-hint="${id}" title="Понятно, скрыть">✕</button>
+    </div>`;
+}
+function bindHints(){
+    document.querySelectorAll('.hint-close').forEach(btn=>{
+        btn.onclick=()=>{
+            const id=btn.dataset.hint;
+            dismissedHints.add(id);
+            localStorage.setItem('dh',JSON.stringify([...dismissedHints]));
+            document.getElementById(`hint-${id}`)?.remove();
         };
-        renderLeavesList();
-    }
-    
-    function renderLeavesList() {
-        const list = document.getElementById("leavesList");
-        if (!list) return;
-        const today = formatYMD(new Date());
-        const upcoming = leaves.filter(l => l.end_date >= today);
-        list.innerHTML = `<strong>📅 Актуальные отпуска:</strong><br>` + 
-            (upcoming.length ? upcoming.map(l => 
-                `• ${l.employee}: ${l.start_date} — ${l.end_date} <button class="del-leave" data-id="${l.id}" style="font-size:11px;padding:2px 8px;background:#ff3b30;color:white;border:none;border-radius:10px;cursor:pointer;">✕</button>`
-            ).join('<br>') : 'Нет активных отпусков');
-        
-        document.querySelectorAll(".del-leave").forEach(btn => {
-            btn.onclick = async () => {
-                if (confirm("Удалить отпуск?")) {
-                    await supabase.from("leaves").delete().eq("id", btn.dataset.id);
-                    await loadData();
-                    renderLeavesList();
-                    await renderAll();
-                }
-            };
-        });
-    }
-
-    async function renderAll() {
-        if (!currentUser) return;
-        renderProfile();
-        await renderSchedule();
-        await renderMap();
-    }
-
-    async function initLogin() {
-        await loadData();
-        if (!employees.length) { 
-            document.getElementById("loginLoader").innerText = "❌ Нет данных о сотрудниках"; 
-            return; 
-        }
-        document.getElementById("loginLoader").style.display = "none";
-        const select = document.getElementById("employeeSelect");
-        select.style.display = "block";
-        select.innerHTML = '<option value="">Выберите себя</option>' + 
-            employees
-                .slice()
-                .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-                .map(e => `<option value="${e.name}">${e.name}</option>`)
-        document.getElementById("loginBtn").style.display = "block";
-        document.getElementById("loginBtn").onclick = () => {
-            const name = select.value;
-            if (!name) return;
-            login(name);
-        };
-    }
-    
-    function login(name) {
-        currentUser = name;
-        localStorage.setItem("currentUser", currentUser);
-        currentWeekStart = getWeekStart(new Date());
-        document.getElementById("loginScreen").style.display = "none";
-        document.getElementById("mainApp").style.display = "block";
-        if (name === "Админ") initAdminPanel();
-        renderAll();
-    }
-    
-    document.addEventListener("DOMContentLoaded", () => {
-        const saved = localStorage.getItem("currentUser");
-        if (saved) {
-            currentUser = saved;
-            currentWeekStart = getWeekStart(new Date());
-            loadData().then(() => {
-                document.getElementById("loginScreen").style.display = "none";
-                document.getElementById("mainApp").style.display = "block";
-                if (saved === "Админ") initAdminPanel();
-                renderAll();
-            });
-        } else {
-            initLogin();
-        }
-        
-        document.getElementById("logoutBtn")?.addEventListener("click", () => { 
-            localStorage.removeItem("currentUser"); 
-            location.reload(); 
-        });
-        document.getElementById("logoutBtnTop")?.addEventListener("click", () => {
-            localStorage.removeItem("currentUser");
-            location.reload();
-        });
-                
-        document.querySelectorAll(".tab-btn").forEach(btn => {
-            btn.onclick = () => {
-                document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-                document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
-                btn.classList.add("active");
-                document.getElementById(`${btn.dataset.tab}Tab`).classList.add("active");
-                if (btn.dataset.tab === "map") renderMap();
-                if (btn.dataset.tab === "schedule") renderSchedule();
-            };
-        });
-        
-        document.getElementById("prevWeekBtn")?.addEventListener("click", () => {
-            currentWeekStart.setDate(currentWeekStart.getDate() - 7);
-            renderAll();
-        });
-        document.getElementById("nextWeekBtn")?.addEventListener("click", () => {
-            currentWeekStart.setDate(currentWeekStart.getDate() + 7);
-            renderAll();
-        });
-        
-        document.getElementById("mapDatePicker")?.addEventListener("change", () => renderMap());
     });
+}
+
+/* ── data ── */
+async function loadData(){
+    const [a,b,c,d,e]=await Promise.all([
+        supabase.from("employees").select("*"),
+        supabase.from("places").select("*"),
+        supabase.from("schedules").select("*"),
+        supabase.from("bookings").select("*"),
+        supabase.from("leaves").select("*")
+    ]);
+    employees=a.data||[]; places=b.data||[]; schedules=c.data||[];
+    bookings=d.data||[]; leaves=e.data||[];
+}
+
+const onLeave=(name,ymd)=>leaves.some(l=>l.employee===name&&ymd>=l.start_date&&ymd<=l.end_date);
+
+function getStatus(name,dateObj,ymd){
+    if(onLeave(name,ymd))return"leave";
+    const bk=bookings.find(b=>b.date===ymd&&b.employee===name);
+    if(bk)return bk.place===null?"home":"office";
+    const sc=schedules.find(s=>s.employee===name);
+    return(sc&&sc[dayKey(dateObj)]===1)?"office":"home";
+}
+
+function getPlace(name,ymd){
+    const bk=bookings.find(b=>b.date===ymd&&b.employee===name);
+    if(bk&&bk.place&&bk.place!=="office_mode")return bk.place;
+    if(!onLeave(name,ymd)){
+        const emp=employees.find(e=>e.name===name);
+        if(getStatus(name,new Date(ymd),ymd)==="office"&&emp?.place?.trim())return emp.place;
+    }
+    return null;
+}
+
+/* ── toggle ── */
+async function toggleStatus(ymd){
+    const st=getStatus(currentUser,new Date(ymd),ymd);
+    if(st==="leave"){toast("В отпуске нельзя изменить статус","bad");return;}
+    const bk=bookings.find(b=>b.date===ymd&&b.employee===currentUser);
+    if(bk)await supabase.from("bookings").delete().eq("id",bk.id);
+    if(st==="office"){
+        await supabase.from("bookings").insert([{date:ymd,employee:currentUser,place:null}]);
+        toast("Переключено на 🏠 Дом","ok");
+    }else{
+        await supabase.from("bookings").insert([{date:ymd,employee:currentUser,place:"office_mode"}]);
+        toast("Переключено на 🏢 Офис","ok");
+    }
+    await loadData(); renderAll();
+}
+
+/* ══ HOME ══ */
+function renderHome(){
+    const ymd=today(), dObj=new Date(ymd);
+    const st=getStatus(currentUser,dObj,ymd);
+    const place=getPlace(currentUser,ymd);
+    const cfg={
+        office:{icon:"🏢",label:"Сегодня в офисе",color:"var(--green)"},
+        home:  {icon:"🏠",label:"Сегодня дома",   color:"var(--gray)"},
+        leave: {icon:"🏖️",label:"В отпуске",       color:"var(--amber)"}
+    };
+    const c=cfg[st];
+    const people=employees.filter(e=>e.name!=="Админ")
+        .map(e=>({name:e.name,st:getStatus(e.name,dObj,ymd)}))
+        .sort((a,b)=>{const o={office:0,home:1,leave:2};return(o[a.st]-o[b.st])||a.name.localeCompare(b.name,'ru');});
+    const inCount=people.filter(p=>p.st==="office").length;
+    const pills=people.map(p=>{
+        const dc=p.st==="office"?"dot-in":p.st==="leave"?"dot-leave":"dot-out";
+        const ico=p.st==="office"?"🏢":p.st==="leave"?"🏖️":"🏠";
+        return`<div class="ppill"><span class="pdot ${dc}"></span>${p.name} ${ico}</div>`;
+    }).join('');
+
+    const h=hint('home','💡','Как пользоваться системой',[
+        'Здесь виден ваш статус на сегодня — офис или дом',
+        'Кнопка справа мгновенно переключает ваш статус',
+        'Ниже — все коллеги и где они находятся сегодня',
+        'Используйте вкладку «Расписание» чтобы изменить любой день недели',
+    ]);
+
+    document.getElementById('homeTab').innerHTML=`
+        ${h}
+        <div class="card" style="border-left:4px solid ${c.color};">
+            <div class="card-title"><span class="card-title-dot" style="background:${c.color};"></span>Статус сегодня</div>
+            <div class="today-strip">
+                <div class="today-icon" style="background:${c.color}20;">${c.icon}</div>
+                <div>
+                    <div class="today-val">${c.label}</div>
+                    ${st==="office"&&place?`<div class="today-place">Место: <strong>${place}</strong></div>`:''}
+                </div>
+                ${st!=="leave"?`<button class="toggle-btn" id="todayToggle">${st==="office"?"→ работаю дома":"→ иду в офис"}</button>`:''}
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title"><span class="card-title-dot" style="background:var(--green);"></span>Кто где сегодня · ${inCount} в офисе</div>
+            <div class="pills">${pills||'<span style="color:var(--text3);font-size:14px;">Нет данных</span>'}</div>
+        </div>
+    `;
+    document.getElementById('todayToggle')?.addEventListener('click',()=>toggleStatus(ymd));
+    bindHints();
+}
+
+/* ══ SCHEDULE ══ */
+function renderSchedule(){
+    const dates=wDates(currentWeekStart), todayYMD=today();
+    const dayRu=['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+    let rows='';
+    for(let i=0;i<7;i++){
+        const d=dates[i],ymd=fYMD(d);
+        const st=getStatus(currentUser,d,ymd);
+        const place=getPlace(currentUser,ymd);
+        const isToday=ymd===todayYMD;
+        let ico,txt,sub,hint2;
+        if(st==="leave"){ico="🏖️";txt="Отпуск";sub="";hint2="";}
+        else if(st==="office"){ico="🏢";txt="Искра";sub=place?`Место: ${place}`:"Место не закреплено";hint2="→ дом";}
+        else{ico="🏠";txt="Дом / Воздвиженка";sub="";hint2="→ офис";}
+        rows+=`<div class="sched-row ${st}${isToday?' today-row':''}" data-date="${ymd}">
+            <div class="sched-date-col">
+                <div class="sched-day">${dayRu[i]}</div>
+                <div class="sched-date">${fDMY(d)}</div>
+                ${isToday?'<div class="today-chip">Сегодня</div>':''}
+            </div>
+            <div class="sched-body">
+                <div class="sched-st">${ico} ${txt}</div>
+                ${sub?`<div class="sched-sub">${sub}</div>`:''}
+            </div>
+            ${hint2?`<span class="sched-hint">${hint2}</span>`:''}
+        </div>`;
+    }
+    const months=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+    const t0=gwStart(new Date());
+    const diff=Math.round((currentWeekStart-t0)/(7*86400000));
+    const wt=diff===0?"Текущая неделя":diff===1?"Следующая неделя":diff===-1?"Прошлая неделя":months[dates[0].getMonth()]+" "+dates[0].getFullYear();
+
+    const h=hint('schedule','📅','Как редактировать расписание',[
+        'Нажмите на любой день — статус переключится между офисом и домом',
+        'Изменение сохраняется сразу, без кнопки «Сохранить»',
+        'Зелёная рамка — сегодняшний день, серая полоска слева — дом, зелёная — офис',
+        'Листайте недели кнопками «Назад» и «Вперёд»',
+    ]);
+
+    document.getElementById('scheduleTab').innerHTML=`
+        ${h}
+        <div class="week-nav">
+            <button class="btn btn-ghost" id="prevW">← Назад</button>
+            <div><span class="week-title">${wt}</span><br><span class="week-sub">${fDMY(dates[0])} — ${fDMY(dates[6])}</span></div>
+            <button class="btn btn-ghost" id="nextW">Вперёд →</button>
+        </div>
+        <div class="sched-list">${rows}</div>
+    `;
+    document.getElementById('prevW').addEventListener('click',()=>{currentWeekStart.setDate(currentWeekStart.getDate()-7);renderSchedule();});
+    document.getElementById('nextW').addEventListener('click',()=>{currentWeekStart.setDate(currentWeekStart.getDate()+7);renderSchedule();});
+    document.querySelectorAll('.sched-row').forEach(el=>{
+        el.addEventListener('click',async()=>{
+            const ymd=el.dataset.date;
+            if(getStatus(currentUser,new Date(ymd),ymd)==="leave"){toast("В отпуске нельзя изменить статус","bad");return;}
+            await toggleStatus(ymd);
+        });
+    });
+    bindHints();
+}
+
+/* ══ MAP ══ */
+function renderMap(){
+    const mapTab=document.getElementById('mapTab');
+    let dateYMD=mapTab.querySelector('#mapDate')?.value||today();
+    const dObj=new Date(dateYMD);
+    const occupant=new Map();
+    for(const emp of employees){
+        if(emp.name==="Админ"||onLeave(emp.name,dateYMD))continue;
+        if(getStatus(emp.name,dObj,dateYMD)!=="office")continue;
+        const pl=getPlace(emp.name,dateYMD);
+        if(pl&&!occupant.has(pl))occupant.set(pl,emp.name);
+    }
+    for(const bk of bookings){
+        if(bk.date===dateYMD&&bk.place&&bk.place!=="office_mode"&&!onLeave(bk.employee,dateYMD))
+            occupant.set(bk.place,bk.employee);
+    }
+    const myEmp=employees.find(e=>e.name===currentUser);
+    const myFixed=myEmp?.place?.trim()||null;
+    const rows=new Map();
+    for(const p of places){if(!rows.has(p.pos_y))rows.set(p.pos_y,[]);rows.get(p.pos_y).push(p);}
+    const sortedYs=[...rows.keys()].sort((a,b)=>b-a);
+    let grid='';
+    for(const y of sortedYs){
+        const row=rows.get(y).sort((a,b)=>a.pos_x-b.pos_x);
+        grid+='<div class="map-row">';
+        for(const p of row){
+            const occ=occupant.get(p.name);
+            let cls,who;
+            if(!occ){cls=myFixed===p.name?"seat-own-free":"seat-free";who=myFixed===p.name?"Ваше место":"Свободно";}
+            else if(occ===currentUser){cls="seat-mine";who="Вы";}
+            else{cls="seat-taken";who=occ;}
+            grid+=`<div class="seat ${cls}" data-place="${p.name}" data-cls="${cls}" data-who="${who}">
+                <div class="seat-name">${p.name}</div>
+                <div class="seat-who">${who}</div>
+            </div>`;
+        }
+        grid+='</div>';
+    }
+    const inOffice=employees.filter(e=>e.name!=="Админ"&&!onLeave(e.name,dateYMD)&&getStatus(e.name,dObj,dateYMD)==="office").sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+    const cpills=inOffice.map(e=>{const pl=getPlace(e.name,dateYMD);return`<div class="ppill"><span class="pdot dot-in"></span>${e.name}${pl?` · <strong>${pl}</strong>`:''}</div>`;}).join('');
+
+    const h=hint('map','🗺️','Как пользоваться картой мест',[
+        'Зелёное место — свободно, нажмите чтобы забронировать',
+        'Синее место с рамкой — ваше текущее место на этот день',
+        'Серое место — занято другим сотрудником',
+        'Нажмите на своё место чтобы освободить его',
+        'Выберите другую дату в поле выше чтобы посмотреть кто будет в офисе',
+    ]);
+
+    mapTab.innerHTML=`
+        ${h}
+        <div class="map-controls">
+            <input type="date" class="map-date" id="mapDate" value="${dateYMD}">
+            <div class="legend">
+                <div class="leg"><div class="ld ld-free"></div> Свободно</div>
+                <div class="leg"><div class="ld ld-taken"></div> Занято</div>
+                <div class="leg"><div class="ld ld-mine"></div> Моё место</div>
+            </div>
+        </div>
+        <div class="map-grid">${grid}</div>
+        <div class="colleagues-section">
+            <div class="card-title"><span class="card-title-dot" style="background:var(--green);"></span>В офисе на Искре · ${fDMY(dObj)} · ${inOffice.length} чел.</div>
+            <div class="colleagues-grid">${cpills||'<span style="color:var(--text3);font-size:14px;">Никого нет</span>'}</div>
+        </div>
+    `;
+    document.getElementById('mapDate').addEventListener('change',()=>renderMap());
+    document.querySelectorAll('.seat').forEach(el=>{
+        el.addEventListener('click',async()=>{
+            const placeName=el.dataset.place, cls=el.dataset.cls, who=el.dataset.who;
+            const dYMD=document.getElementById('mapDate').value, dO=new Date(dYMD);
+            if(cls==="seat-taken"){toast(`Место ${placeName} занято: ${who}`);return;}
+            if(cls==="seat-mine"){
+                if(!confirm(`Освободить место ${placeName} на ${fDMY(dO)}?`))return;
+                const bk=bookings.find(b=>b.date===dYMD&&b.employee===currentUser&&b.place===placeName);
+                if(bk){await supabase.from("bookings").delete().eq("id",bk.id);}
+                else{
+                    const ex=bookings.find(b=>b.date===dYMD&&b.employee===currentUser);
+                    if(ex)await supabase.from("bookings").delete().eq("id",ex.id);
+                    await supabase.from("bookings").insert([{date:dYMD,employee:currentUser,place:null}]);
+                }
+                toast(`Место ${placeName} освобождено`,"ok");
+                await loadData();renderAll();return;
+            }
+            const hasOwn=myFixed&&myFixed!==placeName;
+            const msg=hasOwn?`У вас закреплено место ${myFixed}. Пересесть на ${placeName}?`:`Забронировать место ${placeName} на ${fDMY(dO)}?`;
+            if(!confirm(msg))return;
+            const already=bookings.find(b=>b.date===dYMD&&b.place===placeName&&b.employee!==currentUser);
+            if(already){toast("Место только что заняли, обновите страницу","bad");return;}
+            const old=bookings.find(b=>b.date===dYMD&&b.employee===currentUser);
+            if(old)await supabase.from("bookings").delete().eq("id",old.id);
+            await supabase.from("bookings").insert([{date:dYMD,employee:currentUser,place:placeName}]);
+            toast(`Место ${placeName} забронировано`,"ok");
+            await loadData();renderAll();
+        });
+    });
+    bindHints();
+}
+
+/* ══ PROFILE ══ */
+function renderProfile(){
+    const isAdmin=currentUser==="Админ";
+
+    if(isAdmin){
+        document.getElementById('profileTab').innerHTML=`
+            <div id="adminPanel"></div>
+        `;
+        initAdmin();
+        return;
+    }
+
+    const emp=employees.find(e=>e.name===currentUser);
+    const sc=schedules.find(s=>s.employee===currentUser);
+    const days=['mon','tue','wed','thu','fri','sat','sun'];
+    const names=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+    const chips=names.map((n,i)=>{
+        const isO=sc?.[days[i]]===1;
+        return`<span class="dchip${isO?'':' remote'}">${n}</span>`;
+    }).join('');
+    const hasPlace=emp?.place?.trim();
+    const shared=emp?.shared_with;
+
+    const h=hint('profile','👤','Ваш профиль',[
+        'Здесь отображается ваше закреплённое место в офисе',
+        'Зелёные дни — ваши офисные дни по умолчанию',
+        'Серые дни — дни удалённой работы по умолчанию',
+        'Изменить расписание на конкретный день можно во вкладке «Расписание»',
+    ]);
+
+    document.getElementById('profileTab').innerHTML=`
+        ${h}
+        <div class="profile-grid">
+            <div class="stat-card">
+                <div class="stat-label">Моё место</div>
+                <div class="stat-value">${hasPlace||'—'}</div>
+                ${shared?`<div class="stat-sub">Делю с: ${shared}</div>`:''}
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Расписание</div>
+                <div class="day-chips">${chips}</div>
+            </div>
+        </div>
+    `;
+    bindHints();
+}
+
+/* ══ ADMIN ══ */
+function initAdmin(){
+    const h=hint('admin','🔧','Панель администратора',[
+        'Добавьте отпуск: выберите сотрудника, укажите даты начала и конца',
+        'Сотрудник в отпуске не сможет менять свой статус в эти дни',
+        'Нажмите «Удалить» рядом с отпуском чтобы его отменить',
+    ]);
+    document.getElementById('adminPanel').innerHTML=`
+        ${h}
+        <div class="admin-card">
+            <div class="admin-title">🔧 Управление отпусками</div>
+            <div class="admin-row">
+                <select id="leaveEmp"><option value="">Сотрудник...</option>${employees.filter(e=>e.name!=="Админ").map(e=>`<option value="${e.name}">${e.name}</option>`).join('')}</select>
+                <input type="date" id="leaveStart">
+                <input type="date" id="leaveEnd">
+                <button class="btn btn-primary" id="addLeaveBtn">+ Добавить</button>
+            </div>
+            <div class="leaves-list" id="leavesList"></div>
+        </div>
+    `;
+    renderLeaves();
+    bindHints();
+    document.getElementById('addLeaveBtn').addEventListener('click',async()=>{
+        const emp=document.getElementById('leaveEmp').value;
+        const s=document.getElementById('leaveStart').value;
+        const e=document.getElementById('leaveEnd').value;
+        if(!emp||!s||!e){toast("Заполните все поля","bad");return;}
+        if(s>e){toast("Дата начала позже окончания","bad");return;}
+        await supabase.from("leaves").insert([{employee:emp,start_date:s,end_date:e,type:"vacation"}]);
+        await loadData();toast(`Отпуск для ${emp} добавлен`,"ok");renderAll();renderLeaves();
+    });
+}
+function renderLeaves(){
+    const el=document.getElementById('leavesList');if(!el)return;
+    const t=today();
+    const up=leaves.filter(l=>l.end_date>=t);
+    el.innerHTML=up.map(l=>`
+        <div class="leave-item">
+            <span style="font-size:16px;">🏖️</span>
+            <span class="leave-name">${l.employee}</span>
+            <span class="leave-dates">${l.start_date} — ${l.end_date}</span>
+            <button class="del-btn" data-id="${l.id}">Удалить</button>
+        </div>
+    `).join('')||'<div style="color:var(--text3);font-size:14px;padding:6px 0;">Нет активных отпусков</div>';
+    document.querySelectorAll('.del-btn').forEach(btn=>{
+        btn.addEventListener('click',async()=>{
+            if(!confirm("Удалить отпуск?"))return;
+            await supabase.from("leaves").delete().eq("id",btn.dataset.id);
+            await loadData();renderAll();renderLeaves();
+        });
+    });
+}
+
+function renderAll(){renderHome();renderSchedule();renderMap();renderProfile();}
+
+/* ══ LOADER ══ */
+function hideLoader(){
+    const ls=document.getElementById('ls');
+    ls.classList.add('out');
+    setTimeout(()=>ls.style.display='none',500);
+}
+
+/* ══ LOGIN ══ */
+async function initLogin(){
+    await loadData();
+    await new Promise(r=>setTimeout(r,Math.max(0,2400-performance.now())));
+    hideLoader();
+    if(!employees.length)return;
+    const sel=document.getElementById('employeeSelect');
+    sel.innerHTML='<option value="">Выберите себя...</option>'+
+        employees.slice().sort((a,b)=>a.name.localeCompare(b.name,'ru')).map(e=>`<option value="${e.name}">${e.name}</option>`).join('');
+    document.getElementById('loginScreen').style.display='flex';
+}
+function login(name){
+    currentUser=name; localStorage.setItem("currentUser",name);
+    currentWeekStart=gwStart(new Date());
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('mainApp').style.display='block';
+    document.getElementById('topName').textContent=name;
+    applyAdminMode(name);
+    renderAll();
+}
+
+function applyAdminMode(name){
+    if(name==="Админ"){
+        document.querySelector('.nav-btn[data-tab="home"]').style.display='none';
+        document.querySelector('.nav-btn[data-tab="schedule"]').style.display='none';
+        document.querySelector('.nav-btn[data-tab="map"]').style.display='none';
+        const profileBtn=document.getElementById('profileTabBtn');
+        profileBtn.textContent='Отпуска';
+        profileBtn.classList.add('active');
+        document.querySelector('.nav-btn[data-tab="home"]').classList.remove('active');
+        document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+        document.getElementById('profileTab').classList.add('active');
+    }
+}
+
+/* ══ EVENTS ══ */
+document.addEventListener('DOMContentLoaded',async()=>{
+    const saved=localStorage.getItem("currentUser");
+    if(saved){
+        await loadData();
+        await new Promise(r=>setTimeout(r,Math.max(0,2400-performance.now())));
+        hideLoader();
+        currentUser=saved; currentWeekStart=gwStart(new Date());
+        document.getElementById('mainApp').style.display='block';
+        document.getElementById('topName').textContent=saved;
+        applyAdminMode(saved);
+        renderAll();
+    }else{initLogin();}
+
+    document.getElementById('loginBtn').addEventListener('click',()=>{
+        const v=document.getElementById('employeeSelect').value;if(v)login(v);
+    });
+    document.getElementById('logoutBtn').addEventListener('click',()=>{localStorage.removeItem("currentUser");location.reload();});
+    document.querySelectorAll('.nav-btn').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+            document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(`${btn.dataset.tab}Tab`).classList.add('active');
+        });
+    });
+});
 </script>
 </body>
 </html>
