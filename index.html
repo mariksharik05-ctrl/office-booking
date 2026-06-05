@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Обсидиан — Бронирование</title>
+    <title>Искра — Бронирование</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -23,9 +23,12 @@
         body{font-family:'Nunito',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.5;}
 
         /* LOADING */
-        .ls{position:fixed;inset:0;background:var(--dark);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.5s;}
+        .ls{position:fixed;inset:0;background:linear-gradient(160deg,#1e3240 0%,#2F444E 60%,#243c30 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.6s;}
         .ls.out{opacity:0;pointer-events:none;}
-        .ls-label{color:rgba(255,255,255,0.6);font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-top:20px;}
+        .ls-ring{position:absolute;width:220px;height:220px;border-radius:50%;border:1.5px solid rgba(139,197,64,0.15);animation:pulse-ring 2.8s ease-in-out infinite;}
+        .ls-ring2{width:280px;height:280px;border-color:rgba(139,197,64,0.08);animation-delay:0.6s;}
+        @keyframes pulse-ring{0%,100%{transform:scale(0.92);opacity:0.5;}50%{transform:scale(1.04);opacity:1;}}
+        .ls-label{color:rgba(255,255,255,0.55);font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin-top:24px;}
         .ls-dots::after{content:'';animation:ld 1.2s steps(4,end) infinite;}
         @keyframes ld{0%{content:'';}25%{content:'.';}50%{content:'..';}75%{content:'...';}100%{content:'';}}
 
@@ -137,12 +140,16 @@
         .leg{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);font-weight:500;}
         .ld{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
         .ld-free{background:var(--green);} .ld-taken{background:var(--dark-mid);} .ld-mine{background:var(--dark);}
-        .map-grid{display:flex;flex-direction:column;gap:10px;}
-        .map-row{display:flex;gap:10px;flex-wrap:wrap;}
-        .seat{width:118px;min-width:95px;height:80px;border-radius:14px;border:2px solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:13px;font-weight:600;transition:transform 0.12s,box-shadow 0.12s;gap:3px;}
+        .map-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px;}
+        .map-scroll::-webkit-scrollbar{height:4px;}
+        .map-scroll::-webkit-scrollbar-track{background:var(--border);}
+        .map-scroll::-webkit-scrollbar-thumb{background:var(--dark-mid);border-radius:2px;}
+        .map-grid{display:flex;flex-direction:column;gap:10px;min-width:max-content;}
+        .map-row{display:flex;gap:10px;}
+        .seat{width:110px;height:88px;border-radius:14px;border:2px solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;transition:transform 0.12s,box-shadow 0.12s;padding:8px 6px;gap:4px;}
         .seat:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
-        .seat-name{font-size:14px;font-weight:700;}
-        .seat-who{font-size:11px;font-weight:500;opacity:0.75;}
+        .seat-name{font-size:13px;font-weight:700;line-height:1.2;word-break:break-word;text-align:center;}
+        .seat-who{font-size:10px;font-weight:600;opacity:0.8;line-height:1.3;text-align:center;word-break:break-word;max-width:100%;}
         .seat-free{background:var(--green-light);border-color:var(--green-mid);color:#3a6614;}
         .seat-taken{background:var(--dark-light);border-color:var(--dark-mid);color:var(--gray);cursor:default;}
         .seat-taken:hover{transform:none;box-shadow:none;}
@@ -172,8 +179,8 @@
 
         @media(max-width:600px){
             .topbar{padding:0 14px;} .nav{padding:0 12px;} .main{padding:14px 14px 40px;}
-            .seat{width:86px;min-width:76px;height:68px;font-size:12px;}
-            .seat-name{font-size:12px;} .map-row{gap:8px;}
+            .seat{width:88px;height:80px;}
+            .seat-name{font-size:11px;} .seat-who{font-size:9px;} .map-row{gap:8px;}
         }
 
         /* HELP BUTTON */
@@ -199,8 +206,10 @@
 <body>
 
 <div class="ls" id="ls">
-    <canvas id="hc" width="240" height="230"></canvas>
-    <div class="ls-label ls-dots">Загружаем</div>
+    <div class="ls-ring"></div>
+    <div class="ls-ring ls-ring2"></div>
+    <canvas id="hc" width="260" height="250" style="position:relative;z-index:1;filter:drop-shadow(0 8px 24px rgba(0,0,0,0.4));"></canvas>
+    <div class="ls-label ls-dots" style="position:relative;z-index:1;">Загружаем</div>
 </div>
 
 <div class="toast-wrap" id="toastWrap"></div>
@@ -219,7 +228,7 @@
                 <rect x="100" y="138" width="42" height="36" rx="6" fill="#76787A"/>
             </svg>
         </div>
-        <div class="login-title">Обсидиан</div>
+        <div class="login-title">Искра</div>
         <div class="login-sub">Система бронирования мест</div>
         <select id="employeeSelect"><option value="">Выберите себя...</option></select>
         <button class="btn btn-primary" id="loginBtn">Войти в систему</button>
@@ -235,7 +244,7 @@
                 <rect x="162" y="134" width="34" height="54" rx="4" fill="#2F444E"/>
             </svg>
         </div>
-        <span class="topbar-title">Обсидиан</span>
+        <span class="topbar-title">Искра</span>
         <div class="topbar-right">
             <div class="user-pill"><span class="u-dot"></span><span id="topName"></span></div>
             <button class="btn btn-exit" id="logoutBtn">Выйти</button>
@@ -278,35 +287,66 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
         if(p<=0)return; ctx.save(); ctx.globalAlpha=p; fn(); ctx.restore();
     }
     function draw(phase){
-        ctx.clearRect(0,0,240,230);
+        ctx.clearRect(0,0,260,250);
+        // subtle ground shadow
+        ctx.save();
+        ctx.fillStyle='rgba(0,0,0,0.12)';
+        ctx.beginPath();
+        ctx.ellipse(130,222,90,8,0,0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+
         const pF=prog(phase,0,0.12), pW=prog(phase,0.10,0.26),
               pC=prog(phase,0.24,0.38), pR=prog(phase,0.36,0.54),
               pD=prog(phase,0.52,0.64), p1=prog(phase,0.62,0.73),
               p2=prog(phase,0.69,0.80), pS=prog(phase,0.78,1.00);
-        dropIn(pF,()=>{ ctx.fillStyle='#76787A'; rr(18,188,204,22,6); });
-        dropIn(pW,()=>{ ctx.fillStyle='#C8C8C8'; rr(28,120,184,68,3); });
-        dropIn(pC,()=>{ ctx.fillStyle='#76787A'; rr(162,68,22,50,4); });
-        dropIn(pR,()=>{
-            ctx.fillStyle='#8BC540';
-            ctx.beginPath(); ctx.moveTo(120,44); ctx.lineTo(10,116); ctx.lineTo(230,116); ctx.closePath(); ctx.fill();
-            ctx.fillStyle='#8BC540'; rr(8,112,224,16,5);
+        dropIn(pF,()=>{
+            ctx.fillStyle='#76787A'; rr(28,196,204,22,6);
+            // subtle highlight on foundation
+            ctx.fillStyle='rgba(255,255,255,0.08)'; rr(28,196,204,6,4);
         });
-        fadeIn(pD,()=>{ ctx.fillStyle='#2F444E'; rr(162,134,34,54,[5,5,0,0]); });
-        fadeIn(p1,()=>{ ctx.fillStyle='#76787A'; rr(42,138,42,36,6); });
-        fadeIn(p2,()=>{ ctx.fillStyle='#76787A'; rr(100,138,42,36,6); });
+        dropIn(pW,()=>{
+            ctx.fillStyle='#C8C8C8'; rr(38,128,184,68,3);
+            ctx.fillStyle='rgba(255,255,255,0.12)'; rr(38,128,184,10,3);
+        });
+        dropIn(pC,()=>{ ctx.fillStyle='#76787A'; rr(172,76,22,50,4); });
+        dropIn(pR,()=>{
+            // roof shadow
+            ctx.save(); ctx.fillStyle='rgba(0,0,0,0.12)';
+            ctx.beginPath(); ctx.moveTo(130,52); ctx.lineTo(18,124); ctx.lineTo(242,124); ctx.closePath(); ctx.fill(); ctx.restore();
+            ctx.fillStyle='#8BC540';
+            ctx.beginPath(); ctx.moveTo(130,52); ctx.lineTo(18,122); ctx.lineTo(242,122); ctx.closePath(); ctx.fill();
+            ctx.fillStyle='#8BC540'; rr(16,118,228,16,5);
+            // roof sheen
+            ctx.fillStyle='rgba(255,255,255,0.1)';
+            ctx.beginPath(); ctx.moveTo(130,52); ctx.lineTo(18,122); ctx.lineTo(130,100); ctx.closePath(); ctx.fill();
+        });
+        fadeIn(pD,()=>{
+            ctx.fillStyle='#2F444E'; rr(172,142,34,54,[5,5,0,0]);
+            // door knob
+            ctx.fillStyle='rgba(255,255,255,0.25)';
+            ctx.beginPath(); ctx.arc(178,170,3,0,Math.PI*2); ctx.fill();
+        });
+        fadeIn(p1,()=>{ ctx.fillStyle='#76787A'; rr(52,146,42,36,6); });
+        fadeIn(p2,()=>{ ctx.fillStyle='#76787A'; rr(110,146,42,36,6); });
+        // window sheen
+        fadeIn(Math.min(prog(phase,0.72,0.80),1),()=>{
+            ctx.fillStyle='rgba(255,255,255,0.2)';
+            rr(52,146,20,12,3); rr(110,146,20,12,3);
+        });
         if(pS>0){
             const t=(phase-0.78)/0.22;
-            for(let i=0;i<5;i++){
-                const off=((t*1.3)+i*0.26)%1;
-                const sx=173+Math.sin(off*Math.PI*2.5)*6, sy=68-off*42, sr=3+off*9;
-                ctx.save(); ctx.globalAlpha=(1-off)*0.55*pS;
-                ctx.fillStyle='#aabfc8';
+            for(let i=0;i<6;i++){
+                const off=((t*1.3)+i*0.22)%1;
+                const sx=183+Math.sin(off*Math.PI*2.5)*7, sy=76-off*48, sr=2.5+off*10;
+                ctx.save(); ctx.globalAlpha=(1-off)*0.6*pS;
+                ctx.fillStyle='#b8cfd8';
                 ctx.beginPath(); ctx.arc(sx,sy,sr,0,Math.PI*2); ctx.fill(); ctx.restore();
             }
         }
     }
     let start=null;
-    function frame(ts){ if(!start)start=ts; draw(((ts-start)%2800)/2800); requestAnimationFrame(frame); }
+    function frame(ts){ if(!start)start=ts; draw(((ts-start)%3000)/3000); requestAnimationFrame(frame); }
     requestAnimationFrame(frame);
 })();
 
@@ -473,7 +513,7 @@ function renderSchedule(){
         const isToday=ymd===todayYMD;
         let ico,txt,sub,hint2;
         if(st==="leave"){ico="🏖️";txt="Отпуск";sub="";hint2="";}
-        else if(st==="office"){ico="🏢";txt="Обсидиан";sub=place?`Место: ${place}`:"Место не закреплено";hint2="→ дом";}
+        else if(st==="office"){ico="🏢";txt="Искра";sub=place?`Место: ${place}`:"Место не закреплено";hint2="→ дом";}
         else{ico="🏠";txt="Дом / Воздвиженка";sub="";hint2="→ офис";}
         rows+=`<div class="sched-row ${st}${isToday?' today-row':''}" data-date="${ymd}">
             <div class="sched-date-col">
@@ -495,8 +535,8 @@ function renderSchedule(){
 
     const h=hint('schedule','📅','Как редактировать расписание',[
         'Нажмите на любой день — статус переключится между офисом и домом',
-        'Изменение сохраняется только для текущей недели',
-        'Для изменения постоянного расписания обратитесь к администратору',
+        'Изменение сохраняется сразу, без кнопки «Сохранить»',
+        'Зелёная рамка — сегодняшний день, серая полоска слева — дом, зелёная — офис',
         'Листайте недели кнопками «Назад» и «Вперёд»',
     ]);
 
@@ -580,7 +620,7 @@ function renderMap(){
                 <div class="leg"><div class="ld ld-mine"></div> Моё место</div>
             </div>
         </div>
-        <div class="map-grid">${grid}</div>
+        <div class="map-scroll"><div class="map-grid">${grid}</div></div>
         <div class="colleagues-section">
             <div class="card-title"><span class="card-title-dot" style="background:var(--green);"></span>В офисе на Искре · ${fDMY(dObj)} · ${inOffice.length} чел.</div>
             <div class="colleagues-grid">${cpills||'<span style="color:var(--text3);font-size:14px;">Никого нет</span>'}</div>
@@ -779,8 +819,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
 
 
     /* ══ HELP BUTTON ══ */
-    const TG_TOKEN = '8679285053:AAGWhbUJpjM0wqBWxbWKhb1vMhYM--SN7ew';
-    const TG_CHAT_ID = '1160582567';
+    const TG_TOKEN = 'ВАШ_ТОКЕН_БОТА';
+    const TG_CHAT_ID = 'ВАШ_CHAT_ID';
 
     const helpFab = document.getElementById('helpFab');
     const helpBg  = document.getElementById('helpModalBg');
